@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'utils/app_theme.dart';
 
 void main() {
   runApp(
@@ -20,7 +21,8 @@ class DressSathiApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'DressSathi',
-      theme: ThemeData(primarySwatch: Colors.deepPurple, useMaterial3: true),
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
       home: const AuthWrapper(),
       routes: {
         '/login': (context) => const LoginScreen(),
@@ -51,7 +53,34 @@ class _AuthWrapperState extends State<AuthWrapper> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     if (authProvider.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: AppTheme.primaryNavy,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.checkroom_rounded,
+                size: 64,
+                color: AppTheme.accentCoral,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'DressSathi',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentCoral),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     if (authProvider.isAuthenticated) {
