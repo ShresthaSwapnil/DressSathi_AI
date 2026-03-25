@@ -1,8 +1,30 @@
-node_modules/
-.env
-__pycache__/
-*.sqlite3
-virtualenv/
-venv/
-.venv/
-/server/venv/
+# ── Python / Server ──
+server/venv/
+server/__pycache__/
+server/*.py[cod]
+server/.env
+server/*.db
+server/uploads/
+
+# ── Flutter / App ──
+app/.dart_tool/
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+app/pubspec.lock
+app/*.apk
+app/*.ipa
+
+# ── IDEs ──
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ── Docker ──
+postgres_data/

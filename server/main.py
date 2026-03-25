@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from database import engine, Base
-from routers import auth, items
+from routers import auth, items, recommendation
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -15,6 +15,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(auth.router)
 app.include_router(items.router)
+app.include_router(recommendation.router)
 
 @app.get("/")
 def read_root():
