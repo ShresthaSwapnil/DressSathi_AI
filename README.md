@@ -23,7 +23,7 @@ DressSathi is a mobile application designed to help you digitize your wardrobe, 
 | **Frontend**       | Flutter, Provider (State Management) |
 | **Backend**        | FastAPI (Python), SQLAlchemy         |
 | **Database**       | PostgreSQL                           |
-| **AI Integration** | Google Gemini (1.5 Flash)            |
+| **AI Integration** | Google Gemini (2.5 Pro)              |
 | **Infrastructure** | Docker, Docker-Compose               |
 
 ---

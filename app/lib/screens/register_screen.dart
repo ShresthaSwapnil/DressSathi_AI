@@ -26,7 +26,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (success) {
         if (mounted) {
-          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+          // Pop back to the AuthWrapper which will reactively show AppShell
+          Navigator.of(context).popUntil((route) => route.isFirst);
         }
       } else {
         if (mounted) {
@@ -65,7 +66,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: AppTheme.accentCoral.withOpacity(0.15),
+                    color: AppTheme.accentCoral.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -88,7 +89,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Text(
                   'Create your digital wardrobe',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 14,
                   ),
                 ),
@@ -192,7 +193,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     text: TextSpan(
                       text: 'Already have an account? ',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 14,
                       ),
                       children: const [

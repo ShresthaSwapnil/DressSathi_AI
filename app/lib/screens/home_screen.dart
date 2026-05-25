@@ -5,6 +5,7 @@ import '../services/item_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/constants.dart';
 import 'upload_screen.dart';
+import 'item_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -202,7 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 itemCount: _categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final category = _categories[index];
                   final isSelected = _selectedCategory == category;
@@ -260,7 +261,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           Icon(
                             Icons.checkroom_outlined,
                             size: 64,
-                            color: AppTheme.textSecondary.withOpacity(0.4),
+                            color: AppTheme.textSecondary.withValues(
+                              alpha: 0.4,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -279,7 +282,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ? 'Tap + to add your first item'
                                 : 'Try a different category or search term',
                             style: TextStyle(
-                              color: AppTheme.textSecondary.withOpacity(0.6),
+                              color: AppTheme.textSecondary.withValues(
+                                alpha: 0.6,
+                              ),
                               fontSize: 13,
                             ),
                           ),
@@ -304,73 +309,86 @@ class _HomeScreenState extends State<HomeScreen> {
                           final fullImageUrl =
                               '${Constants.baseUrl}${item['image_url']}';
 
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: AppTheme.cardWhite,
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusLarge,
+                          return GestureDetector(
+                            onTap: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      ItemDetailScreen(item: item),
+                                ),
+                              );
+                              if (result == true) _loadItems();
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppTheme.cardWhite,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusLarge,
+                                ),
+                                boxShadow: AppTheme.softShadow,
                               ),
-                              boxShadow: AppTheme.softShadow,
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.surfaceWhite,
-                                      borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(16),
+                              clipBehavior: Clip.antiAlias,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.surfaceWhite,
+                                        borderRadius:
+                                            const BorderRadius.vertical(
+                                              top: Radius.circular(16),
+                                            ),
+                                      ),
+                                      child: Image.network(
+                                        fullImageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return Center(
+                                                child: Icon(
+                                                  Icons.checkroom_outlined,
+                                                  size: 40,
+                                                  color: AppTheme.textSecondary
+                                                      .withValues(alpha: 0.3),
+                                                ),
+                                              );
+                                            },
                                       ),
                                     ),
-                                    child: Image.network(
-                                      fullImageUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return Center(
-                                              child: Icon(
-                                                Icons.checkroom_outlined,
-                                                size: 40,
-                                                color: AppTheme.textSecondary
-                                                    .withOpacity(0.3),
-                                              ),
-                                            );
-                                          },
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item['name'] ?? 'Unnamed Item',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                            color: AppTheme.textPrimary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          item['category'] ?? '',
+                                          style: const TextStyle(
+                                            color: AppTheme.textSecondary,
+                                            fontSize: 11,
+                                          ),
+                                          maxLines: 1,
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item['name'] ?? 'Unnamed Item',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                          color: AppTheme.textPrimary,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        item['category'] ?? '',
-                                        style: const TextStyle(
-                                          color: AppTheme.textSecondary,
-                                          fontSize: 11,
-                                        ),
-                                        maxLines: 1,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           );
                         },

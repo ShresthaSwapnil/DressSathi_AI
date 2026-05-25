@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/item_service.dart';
@@ -15,9 +16,21 @@ class _UploadScreenState extends State<UploadScreen> {
   final ItemService _itemService = ItemService();
   final _nameController = TextEditingController();
   final _colorController = TextEditingController();
+  final _styleController = TextEditingController();
+  final _seasonController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _colorController.dispose();
+    _styleController.dispose();
+    _seasonController.dispose();
+    super.dispose();
+  }
 
   XFile? _imageFile;
   bool _isLoading = false;
+  bool _isAnalyzing = false;
   final ImagePicker _picker = ImagePicker();
   String _selectedCategory = 'Tops';
 
@@ -33,7 +46,42 @@ class _UploadScreenState extends State<UploadScreen> {
   Future<void> _pickImage(ImageSource source) async {
     final pickedFile = await _picker.pickImage(source: source);
     if (pickedFile != null) {
-      setState(() => _imageFile = pickedFile);
+      setState(() {
+        _imageFile = pickedFile;
+        _isAnalyzing = true;
+      });
+
+      final tags = await _itemService.analyzeImage(pickedFile);
+      if (mounted && tags != null) {
+        setState(() {
+          if (tags['category'] != null) {
+            final aiCat = tags['category'].toString().toLowerCase();
+            for (var c in _categories) {
+              if (c.toLowerCase() == aiCat) {
+                _selectedCategory = c;
+                break;
+              }
+            }
+          }
+          if (tags['color'] != null) {
+            _colorController.text = tags['color'].toString();
+          }
+          if (tags['style'] != null) {
+            _styleController.text = tags['style'].toString();
+          }
+          if (tags['season'] != null) {
+            _seasonController.text = tags['season'].toString();
+          }
+          if (_nameController.text.isEmpty &&
+              tags['color'] != null &&
+              tags['category'] != null) {
+            _nameController.text = "${tags['color']} ${tags['category']}";
+          }
+          _isAnalyzing = false;
+        });
+      } else {
+        if (mounted) setState(() => _isAnalyzing = false);
+      }
     }
   }
 
@@ -55,6 +103,12 @@ class _UploadScreenState extends State<UploadScreen> {
           category: _selectedCategory,
           color: _colorController.text.isNotEmpty
               ? _colorController.text
+              : null,
+          style: _styleController.text.isNotEmpty
+              ? _styleController.text
+              : null,
+          season: _seasonController.text.isNotEmpty
+              ? _seasonController.text
               : null,
         );
 
@@ -150,7 +204,9 @@ class _UploadScreenState extends State<UploadScreen> {
                   boxShadow: AppTheme.softShadow,
                   image: _imageFile != null
                       ? DecorationImage(
-                          image: FileImage(File(_imageFile!.path)),
+                          image: kIsWeb
+                              ? NetworkImage(_imageFile!.path) as ImageProvider
+                              : FileImage(File(_imageFile!.path)) as ImageProvider,
                           fit: BoxFit.cover,
                         )
                       : null,
@@ -163,7 +219,9 @@ class _UploadScreenState extends State<UploadScreen> {
                             width: 64,
                             height: 64,
                             decoration: BoxDecoration(
-                              color: AppTheme.accentCoral.withOpacity(0.1),
+                              color: AppTheme.accentCoral.withValues(
+                                alpha: 0.1,
+                              ),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -185,8 +243,50 @@ class _UploadScreenState extends State<UploadScreen> {
                           Text(
                             'Take a photo or choose from gallery',
                             style: TextStyle(
-                              color: AppTheme.textSecondary.withOpacity(0.6),
+                              color: AppTheme.textSecondary.withValues(
+                                alpha: 0.6,
+                              ),
                               fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      )
+                    : _isAnalyzing
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(
+                            color: AppTheme.accentCoral,
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusPill,
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'AI is analyzing your item...',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -304,6 +404,38 @@ class _UploadScreenState extends State<UploadScreen> {
               controller: _colorController,
               decoration: const InputDecoration(hintText: 'e.g., Navy Blue'),
             ),
+            const SizedBox(height: 20),
+
+            // ── Style ──
+            const Text(
+              'Style',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _styleController,
+              decoration: const InputDecoration(hintText: 'e.g., Casual'),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Season ──
+            const Text(
+              'Season',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _seasonController,
+              decoration: const InputDecoration(hintText: 'e.g., Winter'),
+            ),
             const SizedBox(height: 36),
 
             // ── CTA ──
@@ -364,7 +496,7 @@ class _UploadScreenState extends State<UploadScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppTheme.accentCoral.withOpacity(0.1),
+                  color: AppTheme.accentCoral.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 ),
                 child: const Icon(
@@ -391,7 +523,7 @@ class _UploadScreenState extends State<UploadScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryNavy.withOpacity(0.1),
+                  color: AppTheme.primaryNavy.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 ),
                 child: const Icon(

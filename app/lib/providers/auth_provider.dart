@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 
@@ -16,15 +17,19 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    final token = await _authService.getToken();
-    if (token != null) {
-      final userData = await _authService.getUserProfile();
-      if (userData != null) {
-        _isAuthenticated = true;
-        _user = userData;
-      } else {
-        await logout();
+    try {
+      final token = await _authService.getToken();
+      if (token != null) {
+        final userData = await _authService.getUserProfile();
+        if (userData != null) {
+          _isAuthenticated = true;
+          _user = userData;
+        } else {
+          await logout();
+        }
       }
+    } catch (e) {
+      debugPrint('checkAuthStatus error: $e');
     }
 
     _isLoading = false;
@@ -35,10 +40,14 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    final res = await _authService.login(email, password);
-    if (res != null) {
-      await checkAuthStatus();
-      return true;
+    try {
+      final res = await _authService.login(email, password);
+      if (res != null) {
+        await checkAuthStatus();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('login error: $e');
     }
 
     _isLoading = false;
@@ -50,10 +59,14 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    final res = await _authService.register(email, password);
-    if (res != null) {
-      // auto login after successful registration
-      return await login(email, password);
+    try {
+      final res = await _authService.register(email, password);
+      if (res != null) {
+        // auto login after successful registration
+        return await login(email, password);
+      }
+    } catch (e) {
+      debugPrint('register error: $e');
     }
 
     _isLoading = false;

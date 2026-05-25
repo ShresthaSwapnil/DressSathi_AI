@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../utils/constants.dart';
@@ -32,9 +33,20 @@ class ItemService {
     );
 
     request.headers['Authorization'] = 'Bearer $token';
-    request.files.add(
-      await http.MultipartFile.fromPath('file', imageFile.path),
-    );
+    if (kIsWeb) {
+      final bytes = await imageFile.readAsBytes();
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: imageFile.name,
+        ),
+      );
+    } else {
+      request.files.add(
+        await http.MultipartFile.fromPath('file', imageFile.path),
+      );
+    }
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
@@ -51,6 +63,8 @@ class ItemService {
     String? name,
     String? category,
     String? color,
+    String? style,
+    String? season,
   }) async {
     final token = await _authService.getToken();
     if (token == null) return null;
@@ -66,8 +80,89 @@ class ItemService {
         'name': name,
         'category': category,
         'color': color,
+        'style': ?style,
+        'season': ?season,
       }),
     );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> updateItem(
+    int itemId, {
+    String? name,
+    String? category,
+    String? color,
+    String? style,
+    String? season,
+  }) async {
+    final token = await _authService.getToken();
+    if (token == null) return null;
+
+    final body = <String, dynamic>{};
+    if (name != null) body['name'] = name;
+    if (category != null) body['category'] = category;
+    if (color != null) body['color'] = color;
+    if (style != null) body['style'] = style;
+    if (season != null) body['season'] = season;
+
+    final response = await http.put(
+      Uri.parse('${Constants.baseUrl}/items/$itemId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  }
+
+  Future<bool> deleteItem(int itemId) async {
+    final token = await _authService.getToken();
+    if (token == null) return false;
+
+    final response = await http.delete(
+      Uri.parse('${Constants.baseUrl}/items/$itemId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    return response.statusCode == 200;
+  }
+
+  Future<Map<String, dynamic>?> analyzeImage(XFile imageFile) async {
+    final token = await _authService.getToken();
+    if (token == null) return null;
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${Constants.baseUrl}/items/analyze'),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+    if (kIsWeb) {
+      final bytes = await imageFile.readAsBytes();
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: imageFile.name,
+        ),
+      );
+    } else {
+      request.files.add(
+        await http.MultipartFile.fromPath('file', imageFile.path),
+      );
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);

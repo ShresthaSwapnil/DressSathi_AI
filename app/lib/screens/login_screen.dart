@@ -26,7 +26,10 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (success) {
-        if (mounted) Navigator.pushReplacementNamed(context, '/home');
+        if (mounted) {
+          // Pop back to the AuthWrapper which will reactively show AppShell
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -62,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: AppTheme.accentCoral.withOpacity(0.15),
+                    color: AppTheme.accentCoral.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -85,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text(
                   'Your smart wardrobe companion',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 14,
                   ),
                 ),
@@ -195,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     text: TextSpan(
                       text: "Don't have an account? ",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 14,
                       ),
                       children: const [

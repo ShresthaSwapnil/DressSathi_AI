@@ -12,3 +12,5 @@ python-jose[cryptography]
 python-multipart
 google-generativeai
 python-dotenv
+httpx
+Pillow
