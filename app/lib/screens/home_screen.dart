@@ -4,7 +4,6 @@ import '../providers/auth_provider.dart';
 import '../services/item_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/constants.dart';
-import 'upload_screen.dart';
 import 'item_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -397,16 +396,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const UploadScreen()),
-          );
-          if (result == true) _loadItems();
-        },
-        child: const Icon(Icons.add_rounded, size: 28),
       ),
     );
   }
