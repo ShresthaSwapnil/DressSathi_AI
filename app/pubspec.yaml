@@ -66,6 +66,8 @@ flutter:
 
   assets:
     - assets/logo.png
+    - assets/onboarding_1.png
+    - assets/onboarding_2.png
 
 # ── Native Splash Screen Configuration ──
 flutter_native_splash:

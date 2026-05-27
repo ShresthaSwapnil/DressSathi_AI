@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
-import 'screens/login_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/recommendation_screen.dart';
 import 'screens/friends_screen.dart';
@@ -94,7 +94,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return const AppShell();
     }
 
-    return const LoginScreen();
+    return const OnboardingScreen();
   }
 }
 

@@ -137,7 +137,26 @@ class _LoginScreenState extends State<LoginScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Spacer(flex: 2),
+                          const SizedBox(height: 12),
+
+                          // ── Back Button ──
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              Navigator.pop(context);
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Icon(
+                                Icons.arrow_back_rounded,
+                                color: AppTheme.black,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+
+                          const Spacer(flex: 1),
 
                           // ── Logo ──
                           Image.asset(
