@@ -120,7 +120,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           ),
                           const SizedBox(width: 8),
                           const Text(
-                            'DressSathi',
+                            'DressMate',
                             style: TextStyle(
                               color: AppTheme.white,
                               fontSize: 18,
@@ -394,7 +394,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           child: Column(
                             children: [
                               Text(
-                                '© 2026 DressSathi. All Rights Reserved.',
+                                '© 2026 DressMate. All Rights Reserved.',
                                 style: TextStyle(
                                   color: AppTheme.lightGray,
                                   fontSize: 11,

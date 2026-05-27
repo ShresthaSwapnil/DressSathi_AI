@@ -14,18 +14,18 @@ void main() {
   runApp(
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
-      child: const DressSathiApp(),
+      child: const DressMateApp(),
     ),
   );
 }
 
-class DressSathiApp extends StatelessWidget {
-  const DressSathiApp({super.key});
+class DressMateApp extends StatelessWidget {
+  const DressMateApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'DressSathi',
+      title: 'DressMate',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const AuthWrapper(),
@@ -67,7 +67,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               ),
               const SizedBox(height: 20),
               const Text(
-                'DressSathi',
+                'DressMate',
                 style: TextStyle(
                   color: AppTheme.offBlack,
                   fontSize: 22,
