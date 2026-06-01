@@ -1,12 +1,33 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../utils/constants.dart';
 import 'auth_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ItemService {
   final AuthService _authService = AuthService();
+
+  /// Resolves MIME type from a file name/path extension.
+  MediaType _resolveMediaType(String filename) {
+    final ext = filename.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return MediaType('image', 'jpeg');
+      case 'png':
+        return MediaType('image', 'png');
+      case 'gif':
+        return MediaType('image', 'gif');
+      case 'webp':
+        return MediaType('image', 'webp');
+      case 'heic':
+        return MediaType('image', 'heic');
+      default:
+        return MediaType('image', 'jpeg'); // safe default for images
+    }
+  }
 
   Future<List<dynamic>?> getItems() async {
     final token = await _authService.getToken();
@@ -33,6 +54,7 @@ class ItemService {
     );
 
     request.headers['Authorization'] = 'Bearer $token';
+    final contentType = _resolveMediaType(imageFile.name);
     if (kIsWeb) {
       final bytes = await imageFile.readAsBytes();
       request.files.add(
@@ -40,11 +62,16 @@ class ItemService {
           'file',
           bytes,
           filename: imageFile.name,
+          contentType: contentType,
         ),
       );
     } else {
       request.files.add(
-        await http.MultipartFile.fromPath('file', imageFile.path),
+        await http.MultipartFile.fromPath(
+          'file',
+          imageFile.path,
+          contentType: contentType,
+        ),
       );
     }
 
@@ -146,6 +173,7 @@ class ItemService {
     );
 
     request.headers['Authorization'] = 'Bearer $token';
+    final contentType = _resolveMediaType(imageFile.name);
     if (kIsWeb) {
       final bytes = await imageFile.readAsBytes();
       request.files.add(
@@ -153,11 +181,16 @@ class ItemService {
           'file',
           bytes,
           filename: imageFile.name,
+          contentType: contentType,
         ),
       );
     } else {
       request.files.add(
-        await http.MultipartFile.fromPath('file', imageFile.path),
+        await http.MultipartFile.fromPath(
+          'file',
+          imageFile.path,
+          contentType: contentType,
+        ),
       );
     }
 

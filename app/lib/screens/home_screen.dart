@@ -10,10 +10,10 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   final ItemService _itemService = ItemService();
   List<dynamic> _items = [];
   List<dynamic> _filteredItems = [];
@@ -42,6 +42,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.dispose();
     super.dispose();
   }
+
+  /// Public method so AppShell can trigger a refresh after upload.
+  Future<void> refreshItems() => _loadItems();
 
   Future<void> _loadItems() async {
     setState(() => _isLoading = true);

@@ -113,10 +113,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       left: 24,
                       child: Row(
                         children: [
-                          Image.asset(
-                            'assets/logo.png',
-                            width: 28,
-                            height: 28,
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.asset(
+                              'assets/logo.png',
+                              width: 28,
+                              height: 28,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           const Text(
@@ -241,7 +244,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             ),
                             const SizedBox(width: 6),
                             const Text(
-                              'Joined by 2k+ Stylists',
+                              'Join the Style Revolution',
                               style: TextStyle(
                                 color: AppTheme.white,
                                 fontSize: 12,

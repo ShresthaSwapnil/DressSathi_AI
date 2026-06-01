@@ -27,6 +27,7 @@ class ClothingItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     image_url = Column(String, nullable=False)
+    back_image_url = Column(String, nullable=True)   # back view of the item
     name = Column(String, nullable=True)
     category = Column(String, nullable=True)
     color = Column(String, nullable=True)

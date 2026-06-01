@@ -109,11 +109,13 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    RecommendationScreen(),
-    FriendsScreen(),
-    ProfileScreen(),
+  final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
+
+  late final List<Widget> _screens = [
+    HomeScreen(key: _homeKey),
+    const RecommendationScreen(),
+    const FriendsScreen(),
+    const ProfileScreen(),
   ];
 
   // Maps nav position (0-4, skipping center) to screen index (0-3)
@@ -141,9 +143,9 @@ class _AppShellState extends State<AppShell> {
       context,
       MaterialPageRoute(builder: (context) => const UploadScreen()),
     );
-    // If item was uploaded, refresh the home screen
-    if (result == true && _currentIndex == 0) {
-      setState(() {});
+    // If item was uploaded, refresh the home screen data
+    if (result == true) {
+      _homeKey.currentState?.refreshItems();
     }
   }
 
@@ -156,7 +158,9 @@ class _AppShellState extends State<AppShell> {
         children: [
           // Screen content with bottom padding to avoid navbar overlap
           Padding(
-            padding: const EdgeInsets.only(bottom: 74),
+            padding: EdgeInsets.only(
+              bottom: 60 + MediaQuery.of(context).padding.bottom,
+            ),
             child: IndexedStack(index: _currentIndex, children: _screens),
           ),
           
@@ -171,7 +175,6 @@ class _AppShellState extends State<AppShell> {
               children: [
                 // The navbar background container
                 Container(
-                  height: 80,
                   decoration: BoxDecoration(
                     color: AppTheme.white,
                     boxShadow: [
@@ -184,21 +187,24 @@ class _AppShellState extends State<AppShell> {
                   ),
                   child: SafeArea(
                     top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildNavItem(0, activeNav,
-                              Icons.home_outlined, Icons.home_rounded, 'Home'),
-                          _buildNavItem(1, activeNav,
-                              Icons.checkroom_outlined, Icons.checkroom_rounded, 'Wardrobe'),
-                          const SizedBox(width: 60), // Spacer for the popped out center button
-                          _buildNavItem(3, activeNav,
-                              Icons.people_outline, Icons.people_rounded, 'Social'),
-                          _buildNavItem(4, activeNav,
-                              Icons.person_outline, Icons.person_rounded, 'Profile'),
-                        ],
+                    child: SizedBox(
+                      height: 60,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildNavItem(0, activeNav,
+                                Icons.home_outlined, Icons.home_rounded, 'Home'),
+                            _buildNavItem(1, activeNav,
+                                Icons.checkroom_outlined, Icons.checkroom_rounded, 'Wardrobe'),
+                            const SizedBox(width: 60), // Spacer for the popped out center button
+                            _buildNavItem(3, activeNav,
+                                Icons.people_outline, Icons.people_rounded, 'Social'),
+                            _buildNavItem(4, activeNav,
+                                Icons.person_outline, Icons.person_rounded, 'Profile'),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -232,7 +238,7 @@ class _AppShellState extends State<AppShell> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: AppTheme.secondary.withValues(alpha: 0.35),
+              color: AppTheme.black.withValues(alpha: 0.15),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -259,7 +265,7 @@ class _AppShellState extends State<AppShell> {
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         width: 68,
-        height: 80,
+        height: 60,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

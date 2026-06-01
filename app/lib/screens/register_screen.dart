@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -12,7 +13,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -24,30 +25,44 @@ class _RegisterScreenState extends State<RegisterScreen>
   double _passwordStrength = 0;
 
   late AnimationController _animController;
-  late Animation<double> _fadeIn;
-  late Animation<Offset> _slideUp;
+  late Animation<double> _headerFade;
+  late Animation<double> _cardSlide;
+  late Animation<double> _formFade;
+
+  // Focus tracking
+  bool _emailHasFocus = false;
+  bool _passwordHasFocus = false;
 
   @override
   void initState() {
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1100),
     );
-    _fadeIn = CurvedAnimation(
+    _headerFade = CurvedAnimation(
       parent: _animController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
     );
-    _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
+    _cardSlide = Tween<double>(begin: 60, end: 0).animate(
+      CurvedAnimation(
+        parent: _animController,
+        curve: const Interval(0.15, 0.65, curve: Curves.easeOutCubic),
+      ),
+    );
+    _formFade = CurvedAnimation(
       parent: _animController,
-      curve: const Interval(0.1, 0.7, curve: Curves.easeOutCubic),
-    ));
+      curve: const Interval(0.35, 0.85, curve: Curves.easeOut),
+    );
     _animController.forward();
 
     _passwordController.addListener(_updatePasswordStrength);
+    _emailFocus.addListener(() {
+      setState(() => _emailHasFocus = _emailFocus.hasFocus);
+    });
+    _passwordFocus.addListener(() {
+      setState(() => _passwordHasFocus = _passwordFocus.hasFocus);
+    });
   }
 
   @override
@@ -74,7 +89,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   Color _strengthColor() {
     if (_passwordStrength < 0.3) return AppTheme.errorRed;
-    if (_passwordStrength < 0.6) return AppTheme.primary;
+    if (_passwordStrength < 0.6) return const Color(0xFFFF9F0A);
     return AppTheme.successGreen;
   }
 
@@ -103,7 +118,9 @@ class _RegisterScreenState extends State<RegisterScreen>
       } else {
         HapticFeedback.vibrate();
         if (mounted) {
-          _showErrorSnackBar('Registration failed. Email may already be in use.');
+          _showErrorSnackBar(
+            'Registration failed. Email may already be in use.',
+          );
         }
       }
     } else {
@@ -117,8 +134,20 @@ class _RegisterScreenState extends State<RegisterScreen>
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.error_outline, color: AppTheme.white, size: 18),
-            const SizedBox(width: 10),
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: AppTheme.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                color: AppTheme.white,
+                size: 16,
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 message,
@@ -131,12 +160,10 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
           ],
         ),
-        backgroundColor: AppTheme.offBlack,
+        backgroundColor: const Color(0xFF1C1C1E),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -145,290 +172,663 @@ class _RegisterScreenState extends State<RegisterScreen>
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final topPadding = MediaQuery.of(context).padding.top;
+    final headerHeight = screenHeight * 0.35;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
+      value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppTheme.white,
-        body: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeIn,
-            child: SlideTransition(
-              position: _slideUp,
-              child: CustomScrollView(
-                slivers: [
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        28, 0, 28, bottomInset > 0 ? 20 : 40,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 12),
-
-                          // ── Back Button ──
-                          GestureDetector(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              Navigator.pop(context);
-                            },
-                            behavior: HitTestBehavior.opaque,
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8),
-                              child: Icon(
-                                Icons.arrow_back_rounded,
-                                color: AppTheme.black,
-                                size: 24,
+        body: AnimatedBuilder(
+          animation: _animController,
+          builder: (context, child) {
+            return SingleChildScrollView(
+              child: SizedBox(
+                height: math.max(screenHeight, 750),
+                child: Stack(
+                  children: [
+                    // ── Dark Gradient Header ──
+                    FadeTransition(
+                      opacity: _headerFade,
+                      child: Container(
+                        height: headerHeight,
+                        width: double.infinity,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF0A0A0F),
+                              Color(0xFF0D1B3E),
+                              Color(0xFF142850),
+                            ],
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            // Decorative gradient orbs
+                            Positioned(
+                              right: -50,
+                              top: -40,
+                              child: Container(
+                                width: 200,
+                                height: 200,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: RadialGradient(
+                                    colors: [
+                                      AppTheme.primary.withValues(alpha: 0.15),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-
-                          const Spacer(flex: 1),
-
-                          // ── Logo ──
-                          Image.asset(
-                            'assets/logo.png',
-                            width: 72,
-                            height: 72,
-                          ),
-                          const SizedBox(height: 32),
-
-                          // ── Heading ──
-                          const Text(
-                            'Create\naccount.',
-                            style: TextStyle(
-                              fontSize: 34,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.black,
-                              height: 1.15,
-                              letterSpacing: -1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Start building your wardrobe',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: AppTheme.midGray,
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: -0.1,
-                            ),
-                          ),
-
-                          const SizedBox(height: 40),
-
-                          // ── Form ──
-                          Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Email
-                                TextFormField(
-                                  controller: _emailController,
-                                  focusNode: _emailFocus,
-                                  keyboardType: TextInputType.emailAddress,
-                                  textInputAction: TextInputAction.next,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.black,
+                            Positioned(
+                              left: -30,
+                              bottom: 30,
+                              child: Container(
+                                width: 140,
+                                height: 140,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: RadialGradient(
+                                    colors: [
+                                      AppTheme.secondary.withValues(alpha: 0.1),
+                                      Colors.transparent,
+                                    ],
                                   ),
-                                  decoration: const InputDecoration(
-                                    hintText: 'Email address',
-                                  ),
-                                  onFieldSubmitted: (_) {
-                                    HapticFeedback.selectionClick();
-                                    _passwordFocus.requestFocus();
-                                  },
-                                  onTap: () => HapticFeedback.selectionClick(),
-                                  validator: (v) {
-                                    if (v == null || v.trim().isEmpty) {
-                                      return 'Enter your email';
-                                    }
-                                    if (!v.contains('@')) {
-                                      return 'Enter a valid email';
-                                    }
-                                    return null;
-                                  },
                                 ),
-                                const SizedBox(height: 12),
+                              ),
+                            ),
 
-                                // Password
-                                TextFormField(
-                                  controller: _passwordController,
-                                  focusNode: _passwordFocus,
-                                  obscureText: _obscurePassword,
-                                  textInputAction: TextInputAction.done,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.black,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: 'Password',
-                                    suffixIcon: GestureDetector(
-                                      onTap: () {
-                                        HapticFeedback.selectionClick();
-                                        setState(() {
-                                          _obscurePassword = !_obscurePassword;
-                                        });
-                                      },
-                                      child: Padding(
-                                        padding:
-                                            const EdgeInsets.only(right: 12),
-                                        child: Icon(
-                                          _obscurePassword
-                                              ? Icons.visibility_off_outlined
-                                              : Icons.visibility_outlined,
-                                          color: AppTheme.lightGray,
-                                          size: 20,
+                            // Back button + Logo row
+                            Positioned(
+                              top: topPadding + 12,
+                              left: 20,
+                              right: 20,
+                              child: Row(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      Navigator.pop(context);
+                                    },
+                                    behavior: HitTestBehavior.opaque,
+                                    child: Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.white.withValues(
+                                          alpha: 0.08,
                                         ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(
+                                        Icons.arrow_back_rounded,
+                                        color: AppTheme.white,
+                                        size: 20,
                                       ),
                                     ),
-                                    suffixIconConstraints:
-                                        const BoxConstraints(
-                                      minHeight: 20,
-                                      minWidth: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.asset(
+                                      'assets/logo.png',
+                                      width: 28,
+                                      height: 28,
                                     ),
                                   ),
-                                  onFieldSubmitted: (_) => _register(),
-                                  onTap: () => HapticFeedback.selectionClick(),
-                                  validator: (v) {
-                                    if (v == null || v.length < 6) {
-                                      return 'At least 6 characters';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'DressMate',
+                                    style: TextStyle(
+                                      color: AppTheme.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
 
-                                // ── Password Strength Bar ──
-                                if (_passwordController.text.isNotEmpty) ...[
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(2),
-                                          child: AnimatedContainer(
-                                            duration: const Duration(
-                                                milliseconds: 300),
-                                            height: 3,
-                                            child: LinearProgressIndicator(
-                                              value: _passwordStrength,
-                                              backgroundColor:
-                                                  AppTheme.paleGray,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                _strengthColor(),
+                            // Heading text
+                            Positioned(
+                              left: 28,
+                              right: 28,
+                              bottom: 60,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Create\naccount.',
+                                    style: TextStyle(
+                                      fontSize: 38,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.white,
+                                      height: 1.1,
+                                      letterSpacing: -1.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Start your style journey today',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: AppTheme.white.withValues(
+                                        alpha: 0.55,
+                                      ),
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: -0.1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // ── White Form Card ──
+                    Positioned(
+                      top: headerHeight - 32,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Transform.translate(
+                        offset: Offset(0, _cardSlide.value),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: AppTheme.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(28),
+                              topRight: Radius.circular(28),
+                            ),
+                          ),
+                          child: FadeTransition(
+                            opacity: _formFade,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                28,
+                                36,
+                                28,
+                                20,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // ── Form ──
+                                  Form(
+                                    key: _formKey,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Email Field
+                                        _buildInputField(
+                                          controller: _emailController,
+                                          focusNode: _emailFocus,
+                                          hint: 'Email address',
+                                          icon: Icons.mail_outline_rounded,
+                                          hasFocus: _emailHasFocus,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                          textInputAction: TextInputAction.next,
+                                          onFieldSubmitted: (_) {
+                                            HapticFeedback.selectionClick();
+                                            _passwordFocus.requestFocus();
+                                          },
+                                          validator: (v) {
+                                            if (v == null || v.trim().isEmpty) {
+                                              return 'Enter your email';
+                                            }
+                                            if (!v.contains('@')) {
+                                              return 'Enter a valid email';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        const SizedBox(height: 14),
+
+                                        // Password Field
+                                        _buildInputField(
+                                          controller: _passwordController,
+                                          focusNode: _passwordFocus,
+                                          hint: 'Password (min 6 characters)',
+                                          icon: Icons.lock_outline_rounded,
+                                          hasFocus: _passwordHasFocus,
+                                          obscureText: _obscurePassword,
+                                          textInputAction: TextInputAction.done,
+                                          onFieldSubmitted: (_) => _register(),
+                                          suffixIcon: GestureDetector(
+                                            onTap: () {
+                                              HapticFeedback.selectionClick();
+                                              setState(() {
+                                                _obscurePassword =
+                                                    !_obscurePassword;
+                                              });
+                                            },
+                                            child: AnimatedSwitcher(
+                                              duration: const Duration(
+                                                milliseconds: 200,
+                                              ),
+                                              child: Icon(
+                                                _obscurePassword
+                                                    ? Icons
+                                                          .visibility_off_outlined
+                                                    : Icons.visibility_outlined,
+                                                key: ValueKey(_obscurePassword),
+                                                color: _passwordHasFocus
+                                                    ? AppTheme.primary
+                                                    : AppTheme.lightGray,
+                                                size: 20,
                                               ),
                                             ),
                                           ),
+                                          validator: (v) {
+                                            if (v == null || v.length < 6) {
+                                              return 'At least 6 characters';
+                                            }
+                                            return null;
+                                          },
                                         ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        _strengthLabel(),
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                          color: _strengthColor(),
-                                          letterSpacing: 0.2,
-                                        ),
-                                      ),
-                                    ],
+
+                                        // ── Password Strength Indicator ──
+                                        if (_passwordController
+                                            .text
+                                            .isNotEmpty) ...[
+                                          const SizedBox(height: 14),
+                                          _buildStrengthIndicator(),
+                                        ],
+                                      ],
+                                    ),
                                   ),
-                                ],
-                              ],
-                            ),
-                          ),
 
-                          const SizedBox(height: 28),
+                                  const SizedBox(height: 28),
 
-                          // ── Create Account Button ──
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 250),
-                              child: authProvider.isLoading
-                                  ? Container(
-                                      key: const ValueKey('loading'),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primary,
-                                        borderRadius: BorderRadius.circular(
-                                          AppTheme.radiusMedium,
+                                  // ── Create Account Button ──
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 54,
+                                    child: AnimatedSwitcher(
+                                      duration: const Duration(
+                                        milliseconds: 250,
+                                      ),
+                                      child: authProvider.isLoading
+                                          ? Container(
+                                              key: const ValueKey('loading'),
+                                              decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  colors: [
+                                                    AppTheme.primary,
+                                                    Color(0xFF4D9BFF),
+                                                  ],
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      AppTheme.radiusPill,
+                                                    ),
+                                              ),
+                                              child: const Center(
+                                                child: SizedBox(
+                                                  width: 22,
+                                                  height: 22,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2.5,
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<
+                                                          Color
+                                                        >(AppTheme.white),
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          : Container(
+                                              key: const ValueKey('button'),
+                                              decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  colors: [
+                                                    AppTheme.primary,
+                                                    Color(0xFF4D9BFF),
+                                                  ],
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      AppTheme.radiusPill,
+                                                    ),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: AppTheme.primary
+                                                        .withValues(alpha: 0.3),
+                                                    blurRadius: 16,
+                                                    offset: const Offset(0, 6),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Material(
+                                                color: Colors.transparent,
+                                                child: InkWell(
+                                                  onTap: _register,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        AppTheme.radiusPill,
+                                                      ),
+                                                  child: const Center(
+                                                    child: Text(
+                                                      'Create Account',
+                                                      style: TextStyle(
+                                                        color: AppTheme.white,
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        letterSpacing: 0.3,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 28),
+
+                                  // ── Divider ──
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Container(
+                                          height: 1,
+                                          color: AppTheme.paleGray,
                                         ),
                                       ),
-                                      child: const Center(
-                                        child: SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                              AppTheme.white,
-                                            ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                        ),
+                                        child: Text(
+                                          'or continue with',
+                                          style: TextStyle(
+                                            color: AppTheme.lightGray,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w400,
                                           ),
                                         ),
                                       ),
-                                    )
-                                  : ElevatedButton(
-                                      key: const ValueKey('button'),
-                                      onPressed: _register,
-                                      child: const Text('Create account'),
-                                    ),
-                            ),
-                          ),
-
-                          const Spacer(flex: 2),
-
-                          // ── Footer: Sign In link ──
-                          Center(
-                            child: GestureDetector(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                Navigator.pop(context);
-                              },
-                              behavior: HitTestBehavior.opaque,
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                child: RichText(
-                                  text: const TextSpan(
-                                    text: 'Already have an account?  ',
-                                    style: TextStyle(
-                                      color: AppTheme.lightGray,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                    children: [
-                                      TextSpan(
-                                        text: 'Sign in',
-                                        style: TextStyle(
-                                          color: AppTheme.primary,
-                                          fontWeight: FontWeight.w600,
+                                      Expanded(
+                                        child: Container(
+                                          height: 1,
+                                          color: AppTheme.paleGray,
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
+
+                                  const SizedBox(height: 20),
+
+                                  // ── Social Buttons ──
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _buildSocialButton(
+                                        icon: Icons.g_mobiledata_rounded,
+                                        label: 'Google',
+                                      ),
+                                      const SizedBox(width: 14),
+                                      _buildSocialButton(
+                                        icon: Icons.apple_rounded,
+                                        label: 'Apple',
+                                      ),
+                                    ],
+                                  ),
+
+                                  const Spacer(),
+
+                                  // ── Terms text ──
+                                  Center(
+                                    child: Text(
+                                      'By creating an account, you agree to our\nTerms of Service and Privacy Policy',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: AppTheme.lightGray,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w400,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 14),
+
+                                  // ── Footer: Sign In link ──
+                                  Center(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        Navigator.pop(context);
+                                      },
+                                      behavior: HitTestBehavior.opaque,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        child: RichText(
+                                          text: const TextSpan(
+                                            text: 'Already have an account?  ',
+                                            style: TextStyle(
+                                              color: AppTheme.midGray,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                            children: [
+                                              TextSpan(
+                                                text: 'Sign in',
+                                                style: TextStyle(
+                                                  color: AppTheme.primary,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height:
+                                        MediaQuery.of(context).padding.bottom +
+                                        4,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // ── Strength Indicator with segmented bars ──
+  Widget _buildStrengthIndicator() {
+    return Row(
+      children: [
+        // Segmented bars
+        ...List.generate(4, (index) {
+          final threshold = (index + 1) * 0.25;
+          final isActive = _passwordStrength >= threshold;
+          Color barColor;
+          if (!isActive) {
+            barColor = AppTheme.paleGray;
+          } else if (_passwordStrength < 0.3) {
+            barColor = AppTheme.errorRed;
+          } else if (_passwordStrength < 0.6) {
+            barColor = const Color(0xFFFF9F0A);
+          } else {
+            barColor = AppTheme.successGreen;
+          }
+
+          return Expanded(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              height: 3,
+              margin: EdgeInsets.only(right: index < 3 ? 4 : 0),
+              decoration: BoxDecoration(
+                color: barColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          );
+        }),
+
+        const SizedBox(width: 12),
+
+        // Label
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: Text(
+            _strengthLabel(),
+            key: ValueKey(_strengthLabel()),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _strengthColor(),
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Custom Input Field with animated prefix icon ──
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String hint,
+    required IconData icon,
+    required bool hasFocus,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+    TextInputAction? textInputAction,
+    Widget? suffixIcon,
+    void Function(String)? onFieldSubmitted,
+    String? Function(String?)? validator,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      decoration: BoxDecoration(
+        color: hasFocus
+            ? AppTheme.primary.withValues(alpha: 0.03)
+            : AppTheme.offWhite,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasFocus
+              ? AppTheme.primary.withValues(alpha: 0.35)
+              : AppTheme.paleGray,
+          width: hasFocus ? 1.5 : 1,
+        ),
+      ),
+      child: TextFormField(
+        controller: controller,
+        focusNode: focusNode,
+        obscureText: obscureText,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: AppTheme.black,
+        ),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: AppTheme.lightGray,
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
+          ),
+          filled: false,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 0,
+            vertical: 16,
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 14, right: 10),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                icon,
+                key: ValueKey(hasFocus),
+                color: hasFocus ? AppTheme.primary : AppTheme.lightGray,
+                size: 20,
               ),
             ),
           ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 44,
+            minHeight: 20,
+          ),
+          suffixIcon: suffixIcon != null
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 14),
+                  child: suffixIcon,
+                )
+              : null,
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 34,
+            minHeight: 20,
+          ),
+          errorStyle: const TextStyle(fontSize: 11, height: 0.8),
+        ),
+        onFieldSubmitted: onFieldSubmitted,
+        onTap: () => HapticFeedback.selectionClick(),
+        validator: validator,
+      ),
+    );
+  }
+
+  // ── Social Button ──
+  Widget _buildSocialButton({required IconData icon, required String label}) {
+    return GestureDetector(
+      onTap: () => HapticFeedback.selectionClick(),
+      child: Container(
+        width: 140,
+        height: 50,
+        decoration: BoxDecoration(
+          color: AppTheme.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.paleGray, width: 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 22, color: AppTheme.charcoal),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.charcoal,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
