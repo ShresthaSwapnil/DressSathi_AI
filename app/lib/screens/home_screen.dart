@@ -4,17 +4,16 @@ import '../providers/auth_provider.dart';
 import '../services/item_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/constants.dart';
-import 'upload_screen.dart';
 import 'item_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   final ItemService _itemService = ItemService();
   List<dynamic> _items = [];
   List<dynamic> _filteredItems = [];
@@ -43,6 +42,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.dispose();
     super.dispose();
   }
+
+  /// Public method so AppShell can trigger a refresh after upload.
+  Future<void> refreshItems() => _loadItems();
 
   Future<void> _loadItems() async {
     setState(() => _isLoading = true);
@@ -397,16 +399,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const UploadScreen()),
-          );
-          if (result == true) _loadItems();
-        },
-        child: const Icon(Icons.add_rounded, size: 28),
       ),
     );
   }

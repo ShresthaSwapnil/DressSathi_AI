@@ -81,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 4),
               const Text(
-                'DressSathi Member',
+                'DressMate Member',
                 style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
               ),
               const SizedBox(height: 32),
@@ -110,12 +110,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // ── Menu Items ──
               _buildMenuItem(
                 icon: Icons.info_outline,
-                title: 'About DressSathi',
+                title: 'About DressMate',
                 subtitle: 'Your smart wardrobe companion',
                 onTap: () {
                   showAboutDialog(
                     context: context,
-                    applicationName: 'DressSathi',
+                    applicationName: 'DressMate',
                     applicationVersion: '1.0.0',
                     children: [
                       const Text(

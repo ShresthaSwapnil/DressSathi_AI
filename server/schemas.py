@@ -31,6 +31,7 @@ class ClothingItemBase(BaseModel):
 
 class ClothingItemCreate(ClothingItemBase):
     image_url: str
+    back_image_url: Optional[str] = None
 
 class ClothingItemUpdate(ClothingItemBase):
     """For partial updates — all fields optional."""
@@ -40,6 +41,7 @@ class ClothingItemResponse(ClothingItemBase):
     id: int
     user_id: int
     image_url: str
+    back_image_url: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

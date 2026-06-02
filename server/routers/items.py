@@ -10,6 +10,7 @@ import models
 import schemas
 from routers.auth import get_current_user
 from ai_service import analyze_clothing_image
+from bg_removal_service import process_upload_with_bg_removal
 
 router = APIRouter(prefix="/items", tags=["items"])
 
@@ -21,18 +22,31 @@ def upload_image(
     file: UploadFile = File(...),
     current_user: models.User = Depends(get_current_user)
 ):
+    """Upload an image, remove its background, and return the URL of the processed PNG."""
     # Basic validation
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File provided is not an image.")
         
     file_extension = file.filename.split(".")[-1]
     unique_filename = f"{uuid4()}.{file_extension}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    temp_path = os.path.join(UPLOAD_DIR, unique_filename)
     
-    with open(file_path, "wb") as buffer:
+    # Save the uploaded file temporarily
+    with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-        
-    return {"url": f"/{UPLOAD_DIR}/{unique_filename}"}
+
+    # Remove background synchronously — result is a .png with transparency
+    try:
+        final_path = process_upload_with_bg_removal(temp_path)
+    except RuntimeError as e:
+        # Clean up on failure
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    # Return the URL relative to the static mount
+    final_filename = os.path.basename(final_path)
+    return {"url": f"/{UPLOAD_DIR}/{final_filename}"}
 
 @router.post("/analyze", response_model=schemas.AITagResponse)
 async def analyze_image(
@@ -142,6 +156,13 @@ def delete_item(
     ).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found.")
+
+    # Clean up image files from disk
+    for url_field in [item.image_url, item.back_image_url]:
+        if url_field:
+            file_path = url_field.lstrip("/")
+            if os.path.exists(file_path):
+                os.remove(file_path)
 
     db.delete(item)
     db.commit()

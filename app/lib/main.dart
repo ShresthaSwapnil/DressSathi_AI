@@ -1,29 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
-import 'screens/login_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/recommendation_screen.dart';
 import 'screens/friends_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/upload_screen.dart';
 import 'utils/app_theme.dart';
 
 void main() {
   runApp(
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
-      child: const DressSathiApp(),
+      child: const DressMateApp(),
     ),
   );
 }
 
-class DressSathiApp extends StatelessWidget {
-  const DressSathiApp({super.key});
+class DressMateApp extends StatelessWidget {
+  const DressMateApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'DressSathi',
+      title: 'DressMate',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const AuthWrapper(),
@@ -53,28 +55,34 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     if (authProvider.isLoading) {
       return Scaffold(
-        backgroundColor: AppTheme.primaryNavy,
+        backgroundColor: AppTheme.white,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.checkroom_rounded,
-                size: 64,
-                color: AppTheme.accentCoral,
+              Image.asset(
+                'assets/logo.png',
+                width: 80,
+                height: 80,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               const Text(
-                'DressSathi',
+                'DressMate',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
+                  color: AppTheme.offBlack,
+                  fontSize: 22,
                   fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 24),
-              const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentCoral),
+              const SizedBox(height: 28),
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                ),
               ),
             ],
           ),
@@ -86,7 +94,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return const AppShell();
     }
 
-    return const LoginScreen();
+    return const OnboardingScreen();
   }
 }
 
@@ -101,79 +109,191 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    RecommendationScreen(),
-    FriendsScreen(),
-    ProfileScreen(),
+  final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
+
+  late final List<Widget> _screens = [
+    HomeScreen(key: _homeKey),
+    const RecommendationScreen(),
+    const FriendsScreen(),
+    const ProfileScreen(),
   ];
+
+  // Maps nav position (0-4, skipping center) to screen index (0-3)
+  int _screenIndexFromNav(int navIndex) {
+    if (navIndex < 2) return navIndex;
+    return navIndex - 1; // 3→2, 4→3
+  }
+
+  void _onNavTap(int navIndex) {
+    final screenIndex = _screenIndexFromNav(navIndex);
+    if (_currentIndex != screenIndex) {
+      HapticFeedback.selectionClick();
+      setState(() => _currentIndex = screenIndex);
+    }
+  }
+
+  int _navIndexFromScreen(int screenIndex) {
+    if (screenIndex < 2) return screenIndex;
+    return screenIndex + 1; // 2→3, 3→4
+  }
+
+  Future<void> _onCenterTap() async {
+    HapticFeedback.mediumImpact();
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const UploadScreen()),
+    );
+    // If item was uploaded, refresh the home screen data
+    if (result == true) {
+      _homeKey.currentState?.refreshItems();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final activeNav = _navIndexFromScreen(_currentIndex);
+
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _screens),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 20,
-              offset: const Offset(0, -4),
+      body: Stack(
+        children: [
+          // Screen content with bottom padding to avoid navbar overlap
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: 60 + MediaQuery.of(context).padding.bottom,
             ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            child: IndexedStack(index: _currentIndex, children: _screens),
+          ),
+          
+          // Custom Bottom Navigation Bar positioned at the bottom
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.topCenter,
               children: [
-                _buildNavItem(0, Icons.checkroom_rounded, 'Wardrobe'),
-                _buildNavItem(1, Icons.auto_awesome, 'AI Stylist'),
-                _buildNavItem(2, Icons.people_outline, 'Social'),
-                _buildNavItem(3, Icons.person_outline, 'Profile'),
+                // The navbar background container
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.black.withValues(alpha: 0.06),
+                        blurRadius: 16,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: SizedBox(
+                      height: 60,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildNavItem(0, activeNav,
+                                Icons.home_outlined, Icons.home_rounded, 'Home'),
+                            _buildNavItem(1, activeNav,
+                                Icons.checkroom_outlined, Icons.checkroom_rounded, 'Wardrobe'),
+                            const SizedBox(width: 60), // Spacer for the popped out center button
+                            _buildNavItem(3, activeNav,
+                                Icons.people_outline, Icons.people_rounded, 'Social'),
+                            _buildNavItem(4, activeNav,
+                                Icons.person_outline, Icons.person_rounded, 'Profile'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Popped out center button
+                Positioned(
+                  top: -24, // Pops out of the navbar
+                  child: _buildCenterButton(),
+                ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCenterButton() {
+    return GestureDetector(
+      onTap: _onCenterTap,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppTheme.secondary, AppTheme.secondaryLight],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.black.withValues(alpha: 0.15),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+          border: Border.all(
+            color: AppTheme.white,
+            width: 3.5,
+          ),
+        ),
+        child: const Icon(
+          Icons.add_rounded,
+          color: AppTheme.white,
+          size: 30,
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
-    final isSelected = _currentIndex == index;
+  Widget _buildNavItem(
+      int navIndex, int activeNav, IconData icon, IconData activeIcon, String label) {
+    final isSelected = activeNav == navIndex;
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () => _onNavTap(navIndex),
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.primaryNavy.withValues(alpha: 0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+      child: SizedBox(
+        width: 68,
+        height: 60,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 22,
-              color: isSelected ? AppTheme.primaryNavy : AppTheme.textSecondary,
-            ),
-            if (isSelected) ...[
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppTheme.primaryNavy,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppTheme.primary.withValues(alpha: 0.08)
+                    : Colors.transparent,
+                shape: BoxShape.circle,
               ),
-            ],
+              child: Icon(
+                isSelected ? activeIcon : icon,
+                size: 24,
+                color: isSelected ? AppTheme.primary : AppTheme.midGray,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? AppTheme.primary : AppTheme.midGray,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontSize: 10,
+                letterSpacing: -0.1,
+              ),
+            ),
           ],
         ),
       ),
