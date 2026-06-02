@@ -87,6 +87,7 @@ class ItemService {
 
   Future<Map<String, dynamic>?> createItem({
     required String imageUrl,
+    String? backImageUrl,
     String? name,
     String? category,
     String? color,
@@ -104,11 +105,12 @@ class ItemService {
       },
       body: jsonEncode({
         'image_url': imageUrl,
+        'back_image_url': backImageUrl,
         'name': name,
         'category': category,
         'color': color,
-        'style': ?style,
-        'season': ?season,
+        'style': style,
+        'season': season,
       }),
     );
 

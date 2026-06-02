@@ -15,7 +15,7 @@ void main() {
 
     // Verify that the login screen renders key elements
     expect(find.text('DressMate'), findsOneWidget);
-    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Welcome\nback.'), findsOneWidget);
     expect(find.text('Sign In'), findsWidgets);
   });
 }

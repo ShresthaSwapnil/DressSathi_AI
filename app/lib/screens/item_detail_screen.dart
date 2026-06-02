@@ -20,6 +20,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   late TextEditingController _colorController;
   String _selectedCategory = 'Tops';
 
+  int _currentPage = 0;
+  late PageController _pageController;
+
   final List<String> _categories = [
     'Tops',
     'Bottoms',
@@ -36,13 +39,47 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     _nameController = TextEditingController(text: _item['name'] ?? '');
     _colorController = TextEditingController(text: _item['color'] ?? '');
     _selectedCategory = _item['category'] ?? 'Tops';
+    _pageController = PageController();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _colorController.dispose();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  Widget _buildNetworkImage(String url) {
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: AppTheme.surfaceWhite,
+          child: const Center(
+            child: Icon(
+              Icons.checkroom_outlined,
+              size: 64,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildIndicatorDot(int pageIndex) {
+    final isActive = _currentPage == pageIndex;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      width: isActive ? 8 : 6,
+      height: isActive ? 8 : 6,
+      decoration: BoxDecoration(
+        color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.4),
+        shape: BoxShape.circle,
+      ),
+    );
   }
 
   Future<void> _updateItem() async {
@@ -104,8 +141,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final fullImageUrl = '${Constants.baseUrl}${_item['image_url']}';
-
     return Scaffold(
       backgroundColor: AppTheme.surfaceWhite,
       body: CustomScrollView(
@@ -163,22 +198,67 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              background: Image.network(
-                fullImageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: AppTheme.surfaceWhite,
-                    child: const Center(
-                      child: Icon(
-                        Icons.checkroom_outlined,
-                        size: 64,
-                        color: AppTheme.textSecondary,
-                      ),
+              background: _item['back_image_url'] != null
+                  ? Stack(
+                      children: [
+                        PageView(
+                          controller: _pageController,
+                          onPageChanged: (page) {
+                            setState(() {
+                              _currentPage = page;
+                            });
+                          },
+                          children: [
+                            _buildNetworkImage(
+                              '${Constants.baseUrl}${_item['image_url']}',
+                            ),
+                            _buildNetworkImage(
+                              '${Constants.baseUrl}${_item['back_image_url']}',
+                            ),
+                          ],
+                        ),
+                        // Indicator Overlay
+                        Positioned(
+                          bottom: 24,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.65),
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusPill,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildIndicatorDot(0),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _currentPage == 0 ? 'Front' : 'Back',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildIndicatorDot(1),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : _buildNetworkImage(
+                      '${Constants.baseUrl}${_item['image_url']}',
                     ),
-                  );
-                },
-              ),
             ),
           ),
 

@@ -29,6 +29,7 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   XFile? _imageFile;
+  XFile? _backImageFile;
   bool _isLoading = false;
   bool _isAnalyzing = false;
   final ImagePicker _picker = ImagePicker();
@@ -43,94 +44,109 @@ class _UploadScreenState extends State<UploadScreen> {
     'Accessories',
   ];
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickImage(ImageSource source, bool isFront) async {
     final pickedFile = await _picker.pickImage(source: source);
     if (pickedFile != null) {
       setState(() {
-        _imageFile = pickedFile;
-        _isAnalyzing = true;
+        if (isFront) {
+          _imageFile = pickedFile;
+          _isAnalyzing = true;
+        } else {
+          _backImageFile = pickedFile;
+        }
       });
 
-      final tags = await _itemService.analyzeImage(pickedFile);
-      if (mounted && tags != null) {
-        setState(() {
-          if (tags['category'] != null) {
-            final aiCat = tags['category'].toString().toLowerCase();
-            for (var c in _categories) {
-              if (c.toLowerCase() == aiCat) {
-                _selectedCategory = c;
-                break;
+      if (isFront) {
+        final tags = await _itemService.analyzeImage(pickedFile);
+        if (mounted && tags != null) {
+          setState(() {
+            if (tags['category'] != null) {
+              final aiCat = tags['category'].toString().toLowerCase();
+              for (var c in _categories) {
+                if (c.toLowerCase() == aiCat) {
+                  _selectedCategory = c;
+                  break;
+                }
               }
             }
-          }
-          if (tags['color'] != null) {
-            _colorController.text = tags['color'].toString();
-          }
-          if (tags['style'] != null) {
-            _styleController.text = tags['style'].toString();
-          }
-          if (tags['season'] != null) {
-            _seasonController.text = tags['season'].toString();
-          }
-          if (_nameController.text.isEmpty &&
-              tags['color'] != null &&
-              tags['category'] != null) {
-            _nameController.text = "${tags['color']} ${tags['category']}";
-          }
-          _isAnalyzing = false;
-        });
-      } else {
-        if (mounted) setState(() => _isAnalyzing = false);
+            if (tags['color'] != null) {
+              _colorController.text = tags['color'].toString();
+            }
+            if (tags['style'] != null) {
+              _styleController.text = tags['style'].toString();
+            }
+            if (tags['season'] != null) {
+              _seasonController.text = tags['season'].toString();
+            }
+            if (_nameController.text.isEmpty &&
+                tags['color'] != null &&
+                tags['category'] != null) {
+              _nameController.text = "${tags['color']} ${tags['category']}";
+            }
+            _isAnalyzing = false;
+          });
+        } else {
+          if (mounted) setState(() => _isAnalyzing = false);
+        }
       }
     }
   }
 
   Future<void> _uploadAndSave() async {
     if (_imageFile == null) {
-      _showError('Please select an image first');
+      _showError('Please select a front image first');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
+      // 1. Upload front image
       final imageUrl = await _itemService.uploadImage(_imageFile!);
+      if (imageUrl == null) {
+        _showError('Failed to upload front image.');
+        return;
+      }
 
-      if (imageUrl != null) {
-        final item = await _itemService.createItem(
-          imageUrl: imageUrl,
-          name: _nameController.text.isNotEmpty ? _nameController.text : null,
-          category: _selectedCategory,
-          color: _colorController.text.isNotEmpty
-              ? _colorController.text
-              : null,
-          style: _styleController.text.isNotEmpty
-              ? _styleController.text
-              : null,
-          season: _seasonController.text.isNotEmpty
-              ? _seasonController.text
-              : null,
-        );
+      // 2. Upload back image if selected
+      String? backImageUrl;
+      if (_backImageFile != null) {
+        backImageUrl = await _itemService.uploadImage(_backImageFile!);
+        if (backImageUrl == null) {
+          _showError('Failed to upload back image.');
+          return;
+        }
+      }
 
-        if (item != null) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Item added to wardrobe!'),
-                backgroundColor: AppTheme.successGreen,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
+      // 3. Create the clothing item with both URLs
+      final item = await _itemService.createItem(
+        imageUrl: imageUrl,
+        backImageUrl: backImageUrl,
+        name: _nameController.text.isNotEmpty ? _nameController.text : null,
+        category: _selectedCategory,
+        color: _colorController.text.isNotEmpty ? _colorController.text : null,
+        style: _styleController.text.isNotEmpty ? _styleController.text : null,
+        season: _seasonController.text.isNotEmpty
+            ? _seasonController.text
+            : null,
+      );
+
+      if (item != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Item added to wardrobe!'),
+              backgroundColor: AppTheme.successGreen,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
               ),
-            );
-            Navigator.pop(context, true);
-          }
-        } else {
-          _showError('Failed to save item details.');
+            ),
+          );
+          Navigator.pop(context, true);
         }
       } else {
-        _showError('Failed to upload image.');
+        _showError('Failed to save item details.');
       }
     } catch (e) {
       _showError('An error occurred.');
@@ -152,6 +168,65 @@ class _UploadScreenState extends State<UploadScreen> {
         ),
       );
     }
+  }
+
+  Widget _buildImagePlaceholder(
+    IconData icon,
+    String label, {
+    required bool isRequired,
+  }) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: (isRequired ? AppTheme.accentCoral : AppTheme.primaryNavy)
+                .withValues(alpha: 0.08),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            size: 22,
+            color: isRequired ? AppTheme.accentCoral : AppTheme.primaryNavy,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeleteOverlay(VoidCallback onDelete) {
+    return Stack(
+      children: [
+        Positioned(
+          top: 8,
+          right: 8,
+          child: GestureDetector(
+            onTap: () {
+              onDelete();
+            },
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, size: 16, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -192,134 +267,132 @@ class _UploadScreenState extends State<UploadScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Image Preview ──
-            GestureDetector(
-              onTap: () => _showImagePicker(),
-              child: Container(
-                width: double.infinity,
-                height: 260,
-                decoration: BoxDecoration(
-                  color: AppTheme.cardWhite,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                  boxShadow: AppTheme.softShadow,
-                  image: _imageFile != null
-                      ? DecorationImage(
-                          image: kIsWeb
-                              ? NetworkImage(_imageFile!.path) as ImageProvider
-                              : FileImage(File(_imageFile!.path)) as ImageProvider,
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: _imageFile == null
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: AppTheme.accentCoral.withValues(
-                                alpha: 0.1,
-                              ),
-                              shape: BoxShape.circle,
+            // ── Dual Image Slots ──
+            Row(
+              children: [
+                // ── Front Image ──
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Front View *',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () => _showImagePicker(true),
+                        child: Container(
+                          height: 180,
+                          decoration: BoxDecoration(
+                            color: AppTheme.cardWhite,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusLarge,
                             ),
-                            child: const Icon(
-                              Icons.camera_alt_outlined,
-                              size: 28,
-                              color: AppTheme.accentCoral,
+                            border: Border.all(
+                              color: _imageFile != null
+                                  ? Colors.transparent
+                                  : AppTheme.borderLight,
+                              width: 1,
                             ),
+                            boxShadow: AppTheme.softShadow,
+                            image: _imageFile != null
+                                ? DecorationImage(
+                                    image: kIsWeb
+                                        ? NetworkImage(_imageFile!.path)
+                                              as ImageProvider
+                                        : FileImage(File(_imageFile!.path))
+                                              as ImageProvider,
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
                           ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Tap to add photo',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Take a photo or choose from gallery',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary.withValues(
-                                alpha: 0.6,
-                              ),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      )
-                    : _isAnalyzing
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const CircularProgressIndicator(
-                            color: AppTheme.accentCoral,
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusPill,
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.auto_awesome,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  'AI is analyzing your item...',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
+                          child: _imageFile == null
+                              ? _buildImagePlaceholder(
+                                  Icons.checkroom_rounded,
+                                  'Add Front View',
+                                  isRequired: true,
+                                )
+                              : _isAnalyzing
+                              ? const Center(
+                                  child: CircularProgressIndicator(
+                                    color: AppTheme.accentCoral,
                                   ),
-                                ),
-                              ],
+                                )
+                              : _buildDeleteOverlay(() {
+                                  setState(() {
+                                    _imageFile = null;
+                                  });
+                                }),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // ── Back Image ──
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Back View (Optional)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () => _showImagePicker(false),
+                        child: Container(
+                          height: 180,
+                          decoration: BoxDecoration(
+                            color: AppTheme.cardWhite,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusLarge,
                             ),
+                            border: Border.all(
+                              color: _backImageFile != null
+                                  ? Colors.transparent
+                                  : AppTheme.borderLight,
+                              width: 1,
+                            ),
+                            boxShadow: AppTheme.softShadow,
+                            image: _backImageFile != null
+                                ? DecorationImage(
+                                    image: kIsWeb
+                                        ? NetworkImage(_backImageFile!.path)
+                                              as ImageProvider
+                                        : FileImage(File(_backImageFile!.path))
+                                              as ImageProvider,
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
                           ),
-                        ],
-                      )
-                    : null,
-              ),
+                          child: _backImageFile == null
+                              ? _buildImagePlaceholder(
+                                  Icons.flip_camera_android_rounded,
+                                  'Add Back View',
+                                  isRequired: false,
+                                )
+                              : _buildDeleteOverlay(() {
+                                  setState(() {
+                                    _backImageFile = null;
+                                  });
+                                }),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-
-            // ── Camera/Gallery Buttons ──
-            if (_imageFile != null)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => _pickImage(ImageSource.camera),
-                    icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                    label: const Text('Retake'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  TextButton.icon(
-                    onPressed: () => _pickImage(ImageSource.gallery),
-                    icon: const Icon(Icons.photo_library_outlined, size: 18),
-                    label: const Text('Choose Another'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
             const SizedBox(height: 24),
 
             // ── Category ──
@@ -461,7 +534,7 @@ class _UploadScreenState extends State<UploadScreen> {
     );
   }
 
-  void _showImagePicker() {
+  void _showImagePicker(bool isFront) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.cardWhite,
@@ -482,9 +555,11 @@ class _UploadScreenState extends State<UploadScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Choose Image Source',
-              style: TextStyle(
+            Text(
+              isFront
+                  ? 'Choose Front Image Source'
+                  : 'Choose Back Image Source',
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,
@@ -514,7 +589,7 @@ class _UploadScreenState extends State<UploadScreen> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                _pickImage(ImageSource.camera);
+                _pickImage(ImageSource.camera, isFront);
               },
             ),
             const SizedBox(height: 8),
@@ -541,7 +616,7 @@ class _UploadScreenState extends State<UploadScreen> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
+                _pickImage(ImageSource.gallery, isFront);
               },
             ),
             const SizedBox(height: 16),
