@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // ── Core Palette: Black + White + Blue Primary + Pink Secondary ──
-  static const Color primary = Color(0xFF006DFD);         // brand blue
-  static const Color primaryLight = Color(0xFF4D9BFF);    // lighter blue
-  static const Color primaryDark = Color(0xFF0055CC);     // darker blue
-  static const Color secondary = Color(0xFFF5378C);       // brand pink
-  static const Color secondaryLight = Color(0xFFFF6EAD);  // lighter pink
-  static const Color accent = secondary;                  // alias
+  // ── Core Palette ──────────────────────────────────────────────────────
+  static const Color primary = Color(0xFF006DFD);
+  static const Color primaryLight = Color(0xFF4D9BFF);
+  static const Color primaryDark = Color(0xFF0055CC);
+  static const Color secondary = Color(0xFFF5378C);
+  static const Color secondaryLight = Color(0xFFFF6EAD);
+  static const Color accent = secondary;
 
-  // Keep old names as aliases for backward compatibility with existing screens
-  static const Color primaryNavy = Color(0xFF0A0A0A);     // near-black
+  // Backward-compat aliases
+  static const Color primaryNavy = Color(0xFF0A0A0A);
   static const Color primaryNavyLight = Color(0xFF1A1A1A);
-  static const Color accentCoral = secondary;             // map old coral → pink
+  static const Color accentCoral = secondary;
   static const Color accentCoralLight = secondaryLight;
 
+  // ── Neutrals ──────────────────────────────────────────────────────────
   static const Color black = Color(0xFF000000);
   static const Color offBlack = Color(0xFF0A0A0A);
   static const Color charcoal = Color(0xFF1A1A1A);
@@ -25,22 +26,64 @@ class AppTheme {
   static const Color offWhite = Color(0xFFF5F5F5);
   static const Color white = Color(0xFFFFFFFF);
 
-  static const Color surfaceWhite = offWhite;
+  // ── Semantic Surfaces ─────────────────────────────────────────────────
+  static const Color surfaceWhite = Color(0xFFF8F9FB);
   static const Color cardWhite = white;
   static const Color textPrimary = offBlack;
   static const Color textSecondary = midGray;
-  static const Color borderLight = paleGray;
+  static const Color borderLight = Color(0xFFEAECF0);
   static const Color successGreen = Color(0xFF34C759);
   static const Color errorRed = Color(0xFFFF3B30);
 
-  // ── Radii ──
+  // ── Tinted Surfaces ───────────────────────────────────────────────────
+  static const Color surfaceBlueTint = Color(0xFFF0F6FF);
+  static const Color surfacePinkTint = Color(0xFFFFF0F6);
+  static const Color surfaceGreenTint = Color(0xFFF0FFF4);
+
+  // ── Radii ─────────────────────────────────────────────────────────────
   static const double radiusSmall = 8;
   static const double radiusMedium = 12;
   static const double radiusLarge = 16;
   static const double radiusXL = 20;
+  static const double radiusXXL = 28;
   static const double radiusPill = 50;
 
-  // ── Shadows ──
+  // ── Animation Durations ───────────────────────────────────────────────
+  static const Duration durationFast = Duration(milliseconds: 150);
+  static const Duration durationMedium = Duration(milliseconds: 250);
+  static const Duration durationSlow = Duration(milliseconds: 400);
+
+  // ── Gradients ─────────────────────────────────────────────────────────
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: [primary, primaryLight],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient secondaryGradient = LinearGradient(
+    colors: [secondary, secondaryLight],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient subtleGradient = LinearGradient(
+    colors: [Color(0xFFF8F9FB), Color(0xFFF0F6FF)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  static const LinearGradient shimmerGradient = LinearGradient(
+    colors: [
+      Color(0xFFEEEEEE),
+      Color(0xFFF5F5F5),
+      Color(0xFFEEEEEE),
+    ],
+    stops: [0.0, 0.5, 1.0],
+    begin: Alignment(-1.0, -0.3),
+    end: Alignment(1.0, 0.3),
+  );
+
+  // ── Shadows ───────────────────────────────────────────────────────────
   static List<BoxShadow> get softShadow => [
     BoxShadow(
       color: black.withValues(alpha: 0.04),
@@ -51,18 +94,52 @@ class AppTheme {
 
   static List<BoxShadow> get mediumShadow => [
     BoxShadow(
-      color: black.withValues(alpha: 0.08),
+      color: black.withValues(alpha: 0.06),
       blurRadius: 16,
       offset: const Offset(0, 4),
     ),
+    BoxShadow(
+      color: black.withValues(alpha: 0.02),
+      blurRadius: 4,
+      offset: const Offset(0, 1),
+    ),
   ];
 
-  // ── ThemeData ──
+  static List<BoxShadow> get elevatedShadow => [
+    BoxShadow(
+      color: black.withValues(alpha: 0.08),
+      blurRadius: 24,
+      offset: const Offset(0, 8),
+    ),
+    BoxShadow(
+      color: black.withValues(alpha: 0.04),
+      blurRadius: 8,
+      offset: const Offset(0, 2),
+    ),
+  ];
+
+  static List<BoxShadow> get primaryGlow => [
+    BoxShadow(
+      color: primary.withValues(alpha: 0.25),
+      blurRadius: 20,
+      offset: const Offset(0, 6),
+    ),
+  ];
+
+  static List<BoxShadow> get secondaryGlow => [
+    BoxShadow(
+      color: secondary.withValues(alpha: 0.25),
+      blurRadius: 20,
+      offset: const Offset(0, 6),
+    ),
+  ];
+
+  // ── ThemeData ─────────────────────────────────────────────────────────
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: white,
+      scaffoldBackgroundColor: surfaceWhite,
       primaryColor: primary,
       fontFamily: '.SF Pro Display',
       colorScheme: const ColorScheme.light(
@@ -90,8 +167,7 @@ class AppTheme {
         color: white,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusLarge),
-          side: const BorderSide(color: paleGray, width: 0.5),
+          borderRadius: BorderRadius.circular(radiusXL),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -113,7 +189,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: primary,
-          side: const BorderSide(color: primary, width: 1),
+          side: const BorderSide(color: borderLight, width: 1.5),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMedium),
@@ -127,18 +203,18 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: offWhite,
+        fillColor: white,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(color: borderLight, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(color: borderLight, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMedium),

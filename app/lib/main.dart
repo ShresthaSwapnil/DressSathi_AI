@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'screens/onboarding_screen.dart';
@@ -98,7 +99,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 }
 
-/// Main app shell with bottom navigation
+/// Main app shell with premium bottom navigation
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -106,7 +107,7 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with TickerProviderStateMixin {
   int _currentIndex = 0;
 
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
@@ -141,7 +142,23 @@ class _AppShellState extends State<AppShell> {
     HapticFeedback.mediumImpact();
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const UploadScreen()),
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const UploadScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            )),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
     );
     // If item was uploaded, refresh the home screen data
     if (result == true) {
@@ -152,74 +169,88 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final activeNav = _navIndexFromScreen(_currentIndex);
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       body: Stack(
         children: [
-          // Screen content with bottom padding to avoid navbar overlap
-          Padding(
-            padding: EdgeInsets.only(
-              bottom: 60 + MediaQuery.of(context).padding.bottom,
+          // Screen content
+          Positioned.fill(
+            bottom: 72 + bottomPadding,
+            child: AnimatedSwitcher(
+              duration: AppTheme.durationMedium,
+              child: IndexedStack(
+                key: ValueKey(_currentIndex),
+                index: _currentIndex,
+                children: _screens,
+              ),
             ),
-            child: IndexedStack(index: _currentIndex, children: _screens),
           ),
-          
-          // Custom Bottom Navigation Bar positioned at the bottom
+
+          // Frosted glass bottom navigation
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.topCenter,
-              children: [
-                // The navbar background container
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppTheme.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.black.withValues(alpha: 0.06),
-                        blurRadius: 16,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: SafeArea(
-                    top: false,
-                    child: SizedBox(
-                      height: 60,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildNavItem(0, activeNav,
-                                Icons.home_outlined, Icons.home_rounded, 'Home'),
-                            _buildNavItem(1, activeNav,
-                                Icons.checkroom_outlined, Icons.checkroom_rounded, 'Wardrobe'),
-                            const SizedBox(width: 60), // Spacer for the popped out center button
-                            _buildNavItem(3, activeNav,
-                                Icons.people_outline, Icons.people_rounded, 'Social'),
-                            _buildNavItem(4, activeNav,
-                                Icons.person_outline, Icons.person_rounded, 'Profile'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                
-                // Popped out center button
-                Positioned(
-                  top: -24, // Pops out of the navbar
-                  child: _buildCenterButton(),
-                ),
-              ],
-            ),
+            child: _buildBottomNav(activeNav, bottomPadding),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBottomNav(int activeNav, double bottomPadding) {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        // Frosted glass background
+        ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.white.withValues(alpha: 0.85),
+                border: const Border(
+                  top: BorderSide(
+                    color: Color(0xFFEAECF0),
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 72,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildNavItem(0, activeNav, Icons.home_outlined,
+                            Icons.home_rounded, 'Home'),
+                        _buildNavItem(1, activeNav, Icons.checkroom_outlined,
+                            Icons.checkroom_rounded, 'Stylist'),
+                        const SizedBox(width: 64),
+                        _buildNavItem(3, activeNav, Icons.people_outline,
+                            Icons.people_rounded, 'Social'),
+                        _buildNavItem(4, activeNav, Icons.person_outline,
+                            Icons.person_rounded, 'Profile'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Floating center button
+        Positioned(
+          top: -26,
+          child: _buildCenterButton(),
+        ),
+      ],
     );
   }
 
@@ -230,69 +261,66 @@ class _AppShellState extends State<AppShell> {
         width: 60,
         height: 60,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppTheme.secondary, AppTheme.secondaryLight],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          gradient: AppTheme.secondaryGradient,
           shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.black.withValues(alpha: 0.15),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          boxShadow: AppTheme.secondaryGlow,
           border: Border.all(
             color: AppTheme.white,
-            width: 3.5,
+            width: 4,
           ),
         ),
         child: const Icon(
           Icons.add_rounded,
           color: AppTheme.white,
-          size: 30,
+          size: 28,
         ),
       ),
     );
   }
 
   Widget _buildNavItem(
-      int navIndex, int activeNav, IconData icon, IconData activeIcon, String label) {
+      int navIndex, int activeNav, IconData icon, IconData activeIcon,
+      String label) {
     final isSelected = activeNav == navIndex;
     return GestureDetector(
       onTap: () => _onNavTap(navIndex),
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 68,
-        height: 60,
+        width: 64,
+        height: 72,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(6),
+              duration: AppTheme.durationMedium,
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.primary.withValues(alpha: 0.08)
+                    ? AppTheme.primary.withValues(alpha: 0.1)
                     : Colors.transparent,
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
               ),
-              child: Icon(
-                isSelected ? activeIcon : icon,
-                size: 24,
-                color: isSelected ? AppTheme.primary : AppTheme.midGray,
+              child: AnimatedSwitcher(
+                duration: AppTheme.durationFast,
+                child: Icon(
+                  isSelected ? activeIcon : icon,
+                  key: ValueKey('$navIndex-$isSelected'),
+                  size: 24,
+                  color: isSelected ? AppTheme.primary : AppTheme.lightGray,
+                ),
               ),
             ),
             const SizedBox(height: 2),
-            Text(
-              label,
+            AnimatedDefaultTextStyle(
+              duration: AppTheme.durationFast,
               style: TextStyle(
-                color: isSelected ? AppTheme.primary : AppTheme.midGray,
+                color: isSelected ? AppTheme.primary : AppTheme.lightGray,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 fontSize: 10,
                 letterSpacing: -0.1,
               ),
+              child: Text(label),
             ),
           ],
         ),

@@ -35,13 +35,13 @@ class _UploadScreenState extends State<UploadScreen> {
   final ImagePicker _picker = ImagePicker();
   String _selectedCategory = 'Tops';
 
-  final List<String> _categories = [
-    'Tops',
-    'Bottoms',
-    'Dresses',
-    'Outerwear',
-    'Shoes',
-    'Accessories',
+  final List<Map<String, dynamic>> _categoriesData = [
+    {'label': 'Tops', 'icon': Icons.checkroom_rounded},
+    {'label': 'Bottoms', 'icon': Icons.style_outlined},
+    {'label': 'Dresses', 'icon': Icons.woman_rounded},
+    {'label': 'Outerwear', 'icon': Icons.layers_outlined},
+    {'label': 'Shoes', 'icon': Icons.hiking_rounded},
+    {'label': 'Accessories', 'icon': Icons.watch_rounded},
   ];
 
   Future<void> _pickImage(ImageSource source, bool isFront) async {
@@ -62,9 +62,9 @@ class _UploadScreenState extends State<UploadScreen> {
           setState(() {
             if (tags['category'] != null) {
               final aiCat = tags['category'].toString().toLowerCase();
-              for (var c in _categories) {
-                if (c.toLowerCase() == aiCat) {
-                  _selectedCategory = c;
+              for (var c in _categoriesData) {
+                if (c['label'].toString().toLowerCase() == aiCat) {
+                  _selectedCategory = c['label'];
                   break;
                 }
               }
@@ -135,7 +135,13 @@ class _UploadScreenState extends State<UploadScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Item added to wardrobe!'),
+              content: Row(
+                children: const [
+                  Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                  SizedBox(width: 10),
+                  Text('Item added to wardrobe successfully!'),
+                ],
+              ),
               backgroundColor: AppTheme.successGreen,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
@@ -149,7 +155,7 @@ class _UploadScreenState extends State<UploadScreen> {
         _showError('Failed to save item details.');
       }
     } catch (e) {
-      _showError('An error occurred.');
+      _showError('An error occurred while uploading.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -159,8 +165,14 @@ class _UploadScreenState extends State<UploadScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
-          backgroundColor: AppTheme.accentCoral,
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: AppTheme.errorRed,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -175,57 +187,74 @@ class _UploadScreenState extends State<UploadScreen> {
     String label, {
     required bool isRequired,
   }) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: (isRequired ? AppTheme.accentCoral : AppTheme.primaryNavy)
-                .withValues(alpha: 0.08),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            size: 22,
-            color: isRequired ? AppTheme.accentCoral : AppTheme.primaryNavy,
-          ),
+    return CustomPaint(
+      painter: DashedBorderPainter(
+        color: isRequired ? AppTheme.secondary.withValues(alpha: 0.4) : AppTheme.borderLight,
+      ),
+      child: Container(
+        height: 180,
+        width: double.infinity,
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: (isRequired ? AppTheme.secondary : AppTheme.primary)
+                    .withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 22,
+                color: isRequired ? AppTheme.secondary : AppTheme.primary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isRequired ? 'Required' : 'Optional',
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 10),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _buildDeleteOverlay(VoidCallback onDelete) {
-    return Stack(
-      children: [
-        Positioned(
-          top: 8,
-          right: 8,
-          child: GestureDetector(
-            onTap: () {
-              onDelete();
-            },
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Colors.black54,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close, size: 16, color: Colors.white),
-            ),
+    return Positioned(
+      top: 10,
+      right: 10,
+      child: GestureDetector(
+        onTap: () {
+          Feedback.forTap(context);
+          onDelete();
+        },
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.65),
+            shape: BoxShape.circle,
+            boxShadow: AppTheme.softShadow,
           ),
+          child: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
         ),
-      ],
+      ),
     );
   }
 
@@ -243,6 +272,7 @@ class _UploadScreenState extends State<UploadScreen> {
               color: AppTheme.cardWhite,
               borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
               boxShadow: AppTheme.softShadow,
+              border: Border.all(color: AppTheme.borderLight),
             ),
             child: const Icon(
               Icons.arrow_back_ios_new_rounded,
@@ -253,17 +283,18 @@ class _UploadScreenState extends State<UploadScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Add Item',
+          'Add New Item',
           style: TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
           ),
         ),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -275,59 +306,115 @@ class _UploadScreenState extends State<UploadScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Front View *',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
-                        ),
+                      Row(
+                        children: [
+                          const Text(
+                            'Front View',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '*',
+                            style: TextStyle(
+                              color: AppTheme.secondary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       GestureDetector(
                         onTap: () => _showImagePicker(true),
                         child: Container(
                           height: 180,
                           decoration: BoxDecoration(
                             color: AppTheme.cardWhite,
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusLarge,
-                            ),
-                            border: Border.all(
-                              color: _imageFile != null
-                                  ? Colors.transparent
-                                  : AppTheme.borderLight,
-                              width: 1,
-                            ),
+                            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                             boxShadow: AppTheme.softShadow,
-                            image: _imageFile != null
-                                ? DecorationImage(
-                                    image: kIsWeb
-                                        ? NetworkImage(_imageFile!.path)
-                                              as ImageProvider
-                                        : FileImage(File(_imageFile!.path))
-                                              as ImageProvider,
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
                           ),
-                          child: _imageFile == null
-                              ? _buildImagePlaceholder(
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              if (_imageFile == null)
+                                _buildImagePlaceholder(
                                   Icons.checkroom_rounded,
                                   'Add Front View',
                                   isRequired: true,
                                 )
-                              : _isAnalyzing
-                              ? const Center(
-                                  child: CircularProgressIndicator(
-                                    color: AppTheme.accentCoral,
+                              else ...[
+                                Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                                    image: DecorationImage(
+                                      image: kIsWeb
+                                          ? NetworkImage(_imageFile!.path) as ImageProvider
+                                          : FileImage(File(_imageFile!.path)) as ImageProvider,
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
-                                )
-                              : _buildDeleteOverlay(() {
-                                  setState(() {
-                                    _imageFile = null;
-                                  });
-                                }),
+                                ),
+                                // Analysis Loader Overlay
+                                if (_isAnalyzing)
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                                    ),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.5,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(alpha: 0.2),
+                                              borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: const [
+                                                Icon(Icons.auto_awesome, color: Colors.white, size: 12),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  'AI Scanning...',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                if (!_isAnalyzing)
+                                  _buildDeleteOverlay(() {
+                                    setState(() {
+                                      _imageFile = null;
+                                    });
+                                  }),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -340,52 +427,52 @@ class _UploadScreenState extends State<UploadScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Back View (Optional)',
+                        'Back View',
                         style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                           color: AppTheme.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       GestureDetector(
                         onTap: () => _showImagePicker(false),
                         child: Container(
                           height: 180,
                           decoration: BoxDecoration(
                             color: AppTheme.cardWhite,
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusLarge,
-                            ),
-                            border: Border.all(
-                              color: _backImageFile != null
-                                  ? Colors.transparent
-                                  : AppTheme.borderLight,
-                              width: 1,
-                            ),
+                            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                             boxShadow: AppTheme.softShadow,
-                            image: _backImageFile != null
-                                ? DecorationImage(
-                                    image: kIsWeb
-                                        ? NetworkImage(_backImageFile!.path)
-                                              as ImageProvider
-                                        : FileImage(File(_backImageFile!.path))
-                                              as ImageProvider,
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
                           ),
-                          child: _backImageFile == null
-                              ? _buildImagePlaceholder(
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              if (_backImageFile == null)
+                                _buildImagePlaceholder(
                                   Icons.flip_camera_android_rounded,
                                   'Add Back View',
                                   isRequired: false,
                                 )
-                              : _buildDeleteOverlay(() {
+                              else ...[
+                                Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                                    image: DecorationImage(
+                                      image: kIsWeb
+                                          ? NetworkImage(_backImageFile!.path) as ImageProvider
+                                          : FileImage(File(_backImageFile!.path)) as ImageProvider,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                _buildDeleteOverlay(() {
                                   setState(() {
                                     _backImageFile = null;
                                   });
                                 }),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -393,72 +480,116 @@ class _UploadScreenState extends State<UploadScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            // ── Category ──
-            const Text(
-              'Category',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
+            // ── Category Section ──
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Category',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 14),
             Wrap(
               spacing: 8,
-              runSpacing: 8,
-              children: _categories.map((cat) {
-                final isSelected = _selectedCategory == cat;
+              runSpacing: 10,
+              children: _categoriesData.map((cat) {
+                final isSelected = _selectedCategory == cat['label'];
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = cat),
+                  onTap: () => setState(() => _selectedCategory = cat['label']),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: AppTheme.durationFast,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
+                      horizontal: 14,
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppTheme.primaryNavy
-                          : AppTheme.cardWhite,
+                      gradient: isSelected ? AppTheme.primaryGradient : null,
+                      color: isSelected ? null : AppTheme.cardWhite,
                       borderRadius: BorderRadius.circular(AppTheme.radiusPill),
                       border: isSelected
                           ? null
-                          : Border.all(color: AppTheme.borderLight),
+                          : Border.all(color: AppTheme.borderLight, width: 1.5),
+                      boxShadow: isSelected ? AppTheme.primaryGlow : AppTheme.softShadow,
                     ),
-                    child: Text(
-                      cat,
-                      style: TextStyle(
-                        color: isSelected
-                            ? Colors.white
-                            : AppTheme.textSecondary,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        fontSize: 13,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          cat['icon'],
+                          size: 16,
+                          color: isSelected ? Colors.white : AppTheme.textSecondary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          cat['label'],
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : AppTheme.textSecondary,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );
               }).toList(),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            // ── Name ──
+            // ── Text Inputs Section ──
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppTheme.secondary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Clothing Details',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ── Item Name ──
             const Text(
-              'Name',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
+              'Item Name',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                hintText: 'e.g., Classic Navy Blazer',
+            Container(
+              decoration: BoxDecoration(boxShadow: AppTheme.softShadow),
+              child: TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  hintText: 'e.g., Classic Navy Blazer',
+                  prefixIcon: Icon(Icons.label_outline_rounded, size: 20),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -466,68 +597,101 @@ class _UploadScreenState extends State<UploadScreen> {
             // ── Color ──
             const Text(
               'Color',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _colorController,
-              decoration: const InputDecoration(hintText: 'e.g., Navy Blue'),
+            Container(
+              decoration: BoxDecoration(boxShadow: AppTheme.softShadow),
+              child: TextField(
+                controller: _colorController,
+                decoration: const InputDecoration(
+                  hintText: 'e.g., Dark Navy Blue',
+                  prefixIcon: Icon(Icons.palette_outlined, size: 20),
+                ),
+              ),
             ),
             const SizedBox(height: 20),
 
             // ── Style ──
             const Text(
               'Style',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _styleController,
-              decoration: const InputDecoration(hintText: 'e.g., Casual'),
+            Container(
+              decoration: BoxDecoration(boxShadow: AppTheme.softShadow),
+              child: TextField(
+                controller: _styleController,
+                decoration: const InputDecoration(
+                  hintText: 'e.g., Smart Casual',
+                  prefixIcon: Icon(Icons.style_outlined, size: 20),
+                ),
+              ),
             ),
             const SizedBox(height: 20),
 
             // ── Season ──
             const Text(
               'Season',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _seasonController,
-              decoration: const InputDecoration(hintText: 'e.g., Winter'),
+            Container(
+              decoration: BoxDecoration(boxShadow: AppTheme.softShadow),
+              child: TextField(
+                controller: _seasonController,
+                decoration: const InputDecoration(
+                  hintText: 'e.g., Autumn / Winter',
+                  prefixIcon: Icon(Icons.wb_sunny_outlined, size: 20),
+                ),
+              ),
             ),
             const SizedBox(height: 36),
 
-            // ── CTA ──
+            // ── CTA Button ──
             SizedBox(
               width: double.infinity,
               height: 56,
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppTheme.accentCoral,
-                      ),
-                    )
-                  : ElevatedButton.icon(
-                      onPressed: _uploadAndSave,
-                      icon: const Icon(Icons.checkroom_rounded, size: 20),
-                      label: const Text('Add to Wardrobe'),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: (!_isLoading && _imageFile != null) ? AppTheme.primaryGradient : null,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  boxShadow: (!_isLoading && _imageFile != null) ? AppTheme.primaryGlow : null,
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: (_isLoading || _imageFile == null) ? null : _uploadAndSave,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: (_imageFile == null)
+                        ? AppTheme.paleGray
+                        : (_isLoading ? AppTheme.primaryNavy : Colors.transparent),
+                    shadowColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                     ),
+                  ),
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.checkroom_rounded, size: 20),
+                  label: Text(
+                    _isLoading ? 'Adding Item...' : 'Add to Wardrobe',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -542,87 +706,188 @@ class _UploadScreenState extends State<UploadScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40,
-              height: 4,
+              width: 44,
+              height: 5,
               decoration: BoxDecoration(
                 color: AppTheme.borderLight,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              isFront
-                  ? 'Choose Front Image Source'
-                  : 'Choose Back Image Source',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                borderRadius: BorderRadius.circular(AppTheme.radiusPill),
               ),
             ),
             const SizedBox(height: 24),
-            ListTile(
-              leading: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppTheme.accentCoral.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-                child: const Icon(
-                  Icons.camera_alt_rounded,
-                  color: AppTheme.accentCoral,
-                ),
+            Text(
+              isFront ? 'Choose Front Image' : 'Choose Back Image',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+                letterSpacing: -0.4,
               ),
-              title: const Text(
-                'Camera',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              subtitle: const Text(
-                'Take a new photo',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.camera, isFront);
-              },
             ),
             const SizedBox(height: 8),
-            ListTile(
-              leading: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-                child: const Icon(
-                  Icons.photo_library_rounded,
-                  color: AppTheme.primaryNavy,
-                ),
+            Text(
+              isFront
+                  ? 'We will automatically scan this image using AI to extract style tags.'
+                  : 'Add a secondary angle for complete details (optional).',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+                height: 1.4,
               ),
-              title: const Text(
-                'Gallery',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              subtitle: const Text(
-                'Choose from your photos',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.gallery, isFront);
-              },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 28),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickImage(ImageSource.camera, isFront);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceBlueTint,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt_rounded,
+                              color: AppTheme.primary,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Take Photo',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Use your camera',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickImage(ImageSource.gallery, isFront);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfacePinkTint,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                        border: Border.all(color: AppTheme.secondary.withValues(alpha: 0.15)),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.photo_library_rounded,
+                              color: AppTheme.secondary,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Upload Gallery',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Choose from photos',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+class DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double gap;
+
+  DashedBorderPainter({
+    required this.color,
+    this.strokeWidth = 1.5,
+    this.gap = 5.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        const Radius.circular(AppTheme.radiusLarge),
+      ));
+
+    double distance = 0.0;
+    for (final pathMetric in path.computeMetrics()) {
+      while (distance < pathMetric.length) {
+        final length = gap;
+        canvas.drawPath(
+          pathMetric.extractPath(distance, distance + length),
+          paint,
+        );
+        distance += length * 2;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
