@@ -8,10 +8,30 @@ class AuthProvider with ChangeNotifier {
   bool _isAuthenticated = false;
   Map<String, dynamic>? _user;
   bool _isLoading = false;
+  bool _sessionExpired = false;
 
   bool get isAuthenticated => _isAuthenticated;
   Map<String, dynamic>? get user => _user;
   bool get isLoading => _isLoading;
+  bool get sessionExpired => _sessionExpired;
+
+  AuthProvider() {
+    AuthService.onSessionExpired.listen((_) {
+      triggerSessionExpired();
+    });
+  }
+
+  void clearSessionExpired() {
+    _sessionExpired = false;
+    notifyListeners();
+  }
+
+  void triggerSessionExpired() {
+    if (_isAuthenticated) {
+      _sessionExpired = true;
+      logout();
+    }
+  }
 
   Future<void> checkAuthStatus() async {
     _isLoading = true;

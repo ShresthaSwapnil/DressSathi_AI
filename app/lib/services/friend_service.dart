@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'auth_service.dart';
 import '../utils/constants.dart';
 
 class FriendService {
-  final _storage = const FlutterSecureStorage();
+  final AuthService _authService = AuthService();
 
   Future<String?> _getToken() async {
-    return await _storage.read(key: 'auth_token');
+    return await _authService.getToken();
   }
 
   Future<List<dynamic>?> getFriends() async {
@@ -21,6 +21,9 @@ class FriendService {
 
     if (response.statusCode == 200) {
       return json.decode(response.body);
+    }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
     }
     return null;
   }
@@ -36,6 +39,9 @@ class FriendService {
 
     if (response.statusCode == 200) {
       return json.decode(response.body);
+    }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
     }
     return null;
   }
@@ -53,6 +59,9 @@ class FriendService {
       body: json.encode({'addressee_email': email}),
     );
 
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return response.statusCode == 200;
   }
 
@@ -65,6 +74,9 @@ class FriendService {
       headers: {'Authorization': 'Bearer $token'},
     );
 
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return response.statusCode == 200;
   }
 
@@ -82,6 +94,9 @@ class FriendService {
       body: json.encode({'friend_user_id': friendUserId}),
     );
 
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return response.statusCode == 200;
   }
 
@@ -96,6 +111,9 @@ class FriendService {
 
     if (response.statusCode == 200) {
       return json.decode(response.body);
+    }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
     }
     return null;
   }
@@ -114,6 +132,9 @@ class FriendService {
       body: json.encode({'comment': comment}),
     );
 
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return response.statusCode == 200;
   }
 
@@ -128,6 +149,9 @@ class FriendService {
 
     if (response.statusCode == 200) {
       return json.decode(response.body);
+    }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
     }
     return null;
   }

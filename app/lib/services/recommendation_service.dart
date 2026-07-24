@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'auth_service.dart';
 import '../utils/constants.dart';
 
 class RecommendationService {
-  final _storage = const FlutterSecureStorage();
+  final AuthService _authService = AuthService();
 
   Future<String?> _getToken() async {
-    return await _storage.read(key: 'auth_token');
+    return await _authService.getToken();
   }
 
   Future<Map<String, dynamic>?> getOutfitRecommendation({
@@ -27,6 +27,9 @@ class RecommendationService {
 
     if (response.statusCode == 200) {
       return json.decode(response.body);
+    }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
     }
     return null;
   }
@@ -57,6 +60,9 @@ class RecommendationService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return null;
   }
 
@@ -72,6 +78,9 @@ class RecommendationService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return null;
   }
 
@@ -84,6 +93,9 @@ class RecommendationService {
       headers: {'Authorization': 'Bearer $token'},
     );
 
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return response.statusCode == 200;
   }
 }

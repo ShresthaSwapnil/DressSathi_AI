@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -6,6 +7,13 @@ import '../utils/constants.dart';
 
 class AuthService {
   final _storage = const FlutterSecureStorage();
+
+  static final StreamController<void> _sessionExpiredController = StreamController<void>.broadcast();
+  static Stream<void> get onSessionExpired => _sessionExpiredController.stream;
+
+  static void notifySessionExpired() {
+    _sessionExpiredController.add(null);
+  }
 
   Future<void> saveToken(String token) async {
     await _storage.write(key: 'jwt', value: token);
@@ -71,6 +79,9 @@ class AuthService {
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
+      }
+      if (response.statusCode == 401) {
+        AuthService.notifySessionExpired();
       }
       debugPrint('Get profile failed: ${response.statusCode} ${response.body}');
       return null;

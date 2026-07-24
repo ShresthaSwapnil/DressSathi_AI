@@ -54,6 +54,62 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
 
+    if (authProvider.sessionExpired) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(
+                  Icons.info_outline_rounded,
+                  color: AppTheme.errorRed,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Session Expired',
+                        style: TextStyle(
+                          color: AppTheme.offBlack,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Please log in again to continue.',
+                        style: TextStyle(
+                          color: AppTheme.midGray,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.white,
+            behavior: SnackBarBehavior.floating,
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              side: const BorderSide(
+                color: AppTheme.borderLight,
+                width: 1,
+              ),
+            ),
+            duration: const Duration(seconds: 4),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+        authProvider.clearSessionExpired();
+      });
+    }
+
     if (authProvider.isLoading) {
       return Scaffold(
         backgroundColor: AppTheme.white,
@@ -227,10 +283,10 @@ class _AppShellState extends State<AppShell> with TickerProviderStateMixin {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildNavItem(0, activeNav, Icons.home_outlined,
-                            Icons.home_rounded, 'Home'),
-                        _buildNavItem(1, activeNav, Icons.checkroom_outlined,
-                            Icons.checkroom_rounded, 'Stylist'),
+                        _buildNavItem(0, activeNav, Icons.checkroom_outlined,
+                            Icons.checkroom_rounded, 'Wardrobe'),
+                        _buildNavItem(1, activeNav, Icons.auto_awesome_outlined,
+                            Icons.auto_awesome_rounded, 'AI Stylist'),
                         const SizedBox(width: 64),
                         _buildNavItem(3, activeNav, Icons.people_outline,
                             Icons.people_rounded, 'Social'),

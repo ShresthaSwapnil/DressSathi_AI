@@ -41,6 +41,9 @@ class ItemService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return null;
   }
 
@@ -82,6 +85,9 @@ class ItemService {
       final data = jsonDecode(response.body);
       return data['url'];
     }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return null;
   }
 
@@ -117,6 +123,9 @@ class ItemService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return null;
   }
 
@@ -150,6 +159,9 @@ class ItemService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return null;
   }
 
@@ -162,6 +174,9 @@ class ItemService {
       headers: {'Authorization': 'Bearer $token'},
     );
 
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
+    }
     return response.statusCode == 200;
   }
 
@@ -201,6 +216,9 @@ class ItemService {
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
+    }
+    if (response.statusCode == 401) {
+      AuthService.notifySessionExpired();
     }
     return null;
   }
