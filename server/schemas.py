@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -8,6 +8,15 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long.")
+        if len(v) > 128:
+            raise ValueError("Password must be at most 128 characters long.")
+        return v
 
 class UserResponse(UserBase):
     id: int
@@ -32,6 +41,25 @@ class ClothingItemBase(BaseModel):
 class ClothingItemCreate(ClothingItemBase):
     image_url: str
     back_image_url: Optional[str] = None
+
+    @field_validator("image_url")
+    @classmethod
+    def validate_image_url(cls, v: str) -> str:
+        if not v.startswith("/uploads/"):
+            raise ValueError("image_url must be a server-managed path starting with /uploads/.")
+        if ".." in v:
+            raise ValueError("image_url must not contain path traversal sequences.")
+        return v
+
+    @field_validator("back_image_url")
+    @classmethod
+    def validate_back_image_url(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            if not v.startswith("/uploads/"):
+                raise ValueError("back_image_url must be a server-managed path starting with /uploads/.")
+            if ".." in v:
+                raise ValueError("back_image_url must not contain path traversal sequences.")
+        return v
 
 class ClothingItemUpdate(ClothingItemBase):
     """For partial updates — all fields optional."""
@@ -111,3 +139,10 @@ class FeedbackResponse(BaseModel):
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+# ── Paginated Responses ──
+class PaginatedItemsResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: List[ClothingItemResponse]
