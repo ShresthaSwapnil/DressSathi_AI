@@ -16,6 +16,14 @@ app/pubspec.lock
 app/*.apk
 app/*.ipa
 
+# ── Accidental root Flutter output ──
+/.dart_tool/
+/build/
+/android/
+/ios/
+/macos/
+/.flutter-plugins-dependencies
+
 # ── IDEs ──
 .vscode/
 .idea/
@@ -32,4 +40,3 @@ postgres_data/
 # ── Root Documentation Files ──
 /*.md
 !/README.md
-

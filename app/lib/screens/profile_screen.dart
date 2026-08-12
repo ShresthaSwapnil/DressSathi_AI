@@ -193,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     _buildMenuItem(
                       icon: Icons.info_outline_rounded,
                       title: 'About DressMate',
@@ -228,7 +228,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    
+
                     _buildMenuItem(
                       icon: Icons.logout_rounded,
                       title: 'Sign Out',
@@ -280,7 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 48),
                 // ── Footer Branding ──
                 Text(

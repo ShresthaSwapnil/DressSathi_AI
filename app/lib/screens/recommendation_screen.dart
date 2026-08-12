@@ -508,7 +508,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         itemBuilder: (context, index) {
           final w = _weathers[index];
           final isSelected = _selectedWeather == w['value'];
-          
+
           Color weatherColor;
           switch (w['value']) {
             case 'clear':
@@ -529,7 +529,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
             default:
               weatherColor = AppTheme.primary;
           }
-          
+
           return Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(

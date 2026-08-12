@@ -52,7 +52,7 @@ class _FriendsScreenState extends State<FriendsScreen>
   Future<void> _sendRequest() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) return;
-    
+
     // Simple email validation pattern
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -537,7 +537,7 @@ class _FriendsScreenState extends State<FriendsScreen>
         itemBuilder: (context, index) {
           final shared = _sharedOutfits[index];
           final sharedBy = shared['shared_by_email'] ?? 'Unknown';
-          
+
           return Container(
             decoration: BoxDecoration(
               color: AppTheme.cardWhite,
