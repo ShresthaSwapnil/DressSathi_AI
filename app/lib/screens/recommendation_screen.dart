@@ -1,641 +1,745 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../services/auth_service.dart';
+import '../services/friend_service.dart';
 import '../services/recommendation_service.dart';
 import '../utils/app_theme.dart';
+import '../utils/constants.dart';
+import '../widgets/app_ui.dart';
 
 class RecommendationScreen extends StatefulWidget {
-  const RecommendationScreen({super.key});
+  const RecommendationScreen({super.key, this.service});
+  final RecommendationService? service;
 
   @override
   State<RecommendationScreen> createState() => _RecommendationScreenState();
 }
 
-class _RecommendationScreenState extends State<RecommendationScreen> {
-  final RecommendationService _service = RecommendationService();
-  bool _isLoading = false;
-  Map<String, dynamic>? _result;
-
-  String _selectedOccasion = 'casual';
-  String _selectedWeather = 'clear';
-
-  final List<Map<String, dynamic>> _occasions = [
-    {'label': 'Casual', 'value': 'casual', 'icon': Icons.weekend_outlined},
-    {
-      'label': 'Formal',
-      'value': 'formal',
-      'icon': Icons.business_center_outlined,
-    },
-    {'label': 'Party', 'value': 'party', 'icon': Icons.celebration_outlined},
-    {'label': 'Work', 'value': 'work', 'icon': Icons.work_outline},
-    {'label': 'Date', 'value': 'date', 'icon': Icons.favorite_outline},
-    {
-      'label': 'Sporty',
-      'value': 'sporty',
-      'icon': Icons.fitness_center_outlined,
-    },
-  ];
-
-  final List<Map<String, dynamic>> _weathers = [
-    {'label': 'Clear', 'value': 'clear', 'icon': Icons.wb_sunny_outlined},
-    {'label': 'Cloudy', 'value': 'cloudy', 'icon': Icons.cloud_outlined},
-    {'label': 'Rainy', 'value': 'rainy', 'icon': Icons.grain_outlined},
-    {'label': 'Cold', 'value': 'cold', 'icon': Icons.ac_unit_outlined},
-    {'label': 'Hot', 'value': 'hot', 'icon': Icons.whatshot_outlined},
-  ];
-
-  Future<void> _getRecommendation() async {
-    setState(() => _isLoading = true);
-    final result = await _service.getOutfitRecommendation(
-      occasion: _selectedOccasion,
-      weather: _selectedWeather,
-    );
-    if (mounted) {
-      setState(() {
-        _result = result;
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _saveOutfit() async {
-    if (_result == null) return;
-    final saved = await _service.saveOutfit(
-      recommendationText: _result!['recommendation'] ?? '',
-      occasion: _selectedOccasion,
-      weather: _selectedWeather,
-    );
-    if (mounted && saved != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              const Text(
-                'Outfit saved to collection!',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-          backgroundColor: AppTheme.successGreen,
-          behavior: SnackBarBehavior.floating,
-          elevation: 6,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          ),
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.surfaceWhite,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Header ──
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  ShaderMask(
-                    shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-                    child: const Icon(
-                      Icons.auto_awesome,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'AI Stylist',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Personalized outfit ideas generated from your wardrobe items.',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // ── Occasion Section ──
-              Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'What\'s the occasion?',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildOccasionGrid(),
-              const SizedBox(height: 32),
-
-              // ── Weather Section ──
-              Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: AppTheme.secondary,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'How\'s the weather?',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildWeatherRow(),
-              const SizedBox(height: 36),
-
-              // ── Generate Button ──
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: !_isLoading ? AppTheme.primaryGradient : null,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    boxShadow: !_isLoading ? AppTheme.primaryGlow : null,
-                  ),
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _getRecommendation,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isLoading ? AppTheme.paleGray : Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox() // Handled by the loading card below
-                        : const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.auto_awesome, size: 20),
-                              SizedBox(width: 8),
-                              Text(
-                                'Generate Outfit Recommendation',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-              ),
-
-              // ── Loading Card ──
-              if (_isLoading) ...[
-                const SizedBox(height: 24),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardWhite,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                    boxShadow: AppTheme.mediumShadow,
-                    border: Border.all(color: AppTheme.borderLight),
-                  ),
-                  child: Column(
-                    children: [
-                      const _PulsingSparkleIcon(),
-                      const SizedBox(height: 20),
-                      const Text(
-                        'Analyzing your wardrobe...',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Finding the perfect match for the occasion & weather',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textSecondary,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: const LinearProgressIndicator(
-                          color: AppTheme.primary,
-                          backgroundColor: AppTheme.surfaceBlueTint,
-                          minHeight: 6,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              // ── Result Card ──
-              if (_result != null && !_isLoading) ...[
-                const SizedBox(height: 28),
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardWhite,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                    boxShadow: AppTheme.mediumShadow,
-                    border: Border.all(color: AppTheme.borderLight),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Top gradient accent bar
-                      Container(
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(AppTheme.radiusXL),
-                            topRight: Radius.circular(AppTheme.radiusXL),
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.surfaceBlueTint,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.auto_awesome,
-                                    size: 18,
-                                    color: AppTheme.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                const Expanded(
-                                  child: Text(
-                                    'AI Recommendation',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                                if (_result!['model_used'] != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.surfacePinkTint,
-                                      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                                    ),
-                                    child: Text(
-                                      _result!['model_used'] ?? '',
-                                      style: const TextStyle(
-                                        color: AppTheme.secondary,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
-                            Text(
-                              _result!['recommendation'] ?? 'No recommendation available.',
-                              style: const TextStyle(
-                                fontSize: 15,
-                                color: AppTheme.textPrimary,
-                                height: 1.6,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.inventory_2_outlined,
-                                  size: 14,
-                                  color: AppTheme.textSecondary,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Based on ${_result!['items_analyzed'] ?? 0} analyzed items in your closet',
-                                  style: const TextStyle(
-                                    color: AppTheme.textSecondary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: _getRecommendation,
-                                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                                    label: const Text('Try Again'),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Container(
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      gradient: AppTheme.secondaryGradient,
-                                      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                                      boxShadow: AppTheme.secondaryGlow,
-                                    ),
-                                    child: ElevatedButton.icon(
-                                      onPressed: _saveOutfit,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                        shadowColor: Colors.transparent,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 14),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                                        ),
-                                      ),
-                                      icon: const Icon(Icons.bookmark_add, size: 18),
-                                      label: const Text('Save Outfit'),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOccasionGrid() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.0,
-      ),
-      itemCount: _occasions.length,
-      itemBuilder: (context, index) {
-        final o = _occasions[index];
-        final isSelected = _selectedOccasion == o['value'];
-        return GestureDetector(
-          onTap: () {
-            Feedback.forTap(context);
-            setState(() => _selectedOccasion = o['value']);
-          },
-          child: AnimatedContainer(
-            duration: AppTheme.durationFast,
-            curve: Curves.easeInOut,
-            decoration: BoxDecoration(
-              gradient: isSelected ? AppTheme.primaryGradient : null,
-              color: isSelected ? null : AppTheme.cardWhite,
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              border: isSelected
-                  ? null
-                  : Border.all(color: AppTheme.borderLight, width: 1.5),
-              boxShadow: isSelected ? AppTheme.primaryGlow : AppTheme.softShadow,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedContainer(
-                  duration: AppTheme.durationFast,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? Colors.white.withValues(alpha: 0.2)
-                        : AppTheme.surfaceBlueTint,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    o['icon'],
-                    size: 22,
-                    color: isSelected ? Colors.white : AppTheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  o['label'],
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : AppTheme.textPrimary,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildWeatherRow() {
-    return SizedBox(
-      height: 94,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _weathers.length,
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        itemBuilder: (context, index) {
-          final w = _weathers[index];
-          final isSelected = _selectedWeather == w['value'];
-
-          Color weatherColor;
-          switch (w['value']) {
-            case 'clear':
-              weatherColor = Colors.orange;
-              break;
-            case 'cloudy':
-              weatherColor = Colors.blueGrey;
-              break;
-            case 'rainy':
-              weatherColor = Colors.blue;
-              break;
-            case 'cold':
-              weatherColor = Colors.cyan;
-              break;
-            case 'hot':
-              weatherColor = Colors.deepOrange;
-              break;
-            default:
-              weatherColor = AppTheme.primary;
-          }
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              onTap: () {
-                Feedback.forTap(context);
-                setState(() => _selectedWeather = w['value']);
-              },
-              child: AnimatedContainer(
-                duration: AppTheme.durationFast,
-                width: 90,
-                decoration: BoxDecoration(
-                  gradient: isSelected ? AppTheme.secondaryGradient : null,
-                  color: isSelected ? null : AppTheme.cardWhite,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                  border: isSelected
-                      ? null
-                      : Border.all(color: AppTheme.borderLight, width: 1.5),
-                  boxShadow: isSelected ? AppTheme.secondaryGlow : AppTheme.softShadow,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      w['icon'],
-                      size: 24,
-                      color: isSelected ? Colors.white : weatherColor,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      w['label'],
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : AppTheme.textPrimary,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _PulsingSparkleIcon extends StatefulWidget {
-  const _PulsingSparkleIcon();
-
-  @override
-  State<_PulsingSparkleIcon> createState() => _PulsingSparkleIconState();
-}
-
-class _PulsingSparkleIconState extends State<_PulsingSparkleIcon>
+class _RecommendationScreenState extends State<RecommendationScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _rotateAnimation;
+  late final RecommendationService _service =
+      widget.service ?? RecommendationService();
+  final _friends = FriendService();
+  final _weather = TextEditingController(text: 'mild and clear');
+  late final TabController _tabs = TabController(length: 2, vsync: this);
+  final _occasions = const [
+    ('casual', Icons.weekend_outlined),
+    ('work', Icons.work_outline_rounded),
+    ('formal', Icons.business_center_outlined),
+    ('party', Icons.celebration_outlined),
+    ('date', Icons.favorite_border_rounded),
+    ('sporty', Icons.directions_run_rounded),
+  ];
+  String _occasion = 'casual';
+  bool _liveWeather = true;
+  bool _loading = false;
+  String? _error;
+  Map<String, dynamic>? _result;
+  List<dynamic> _history = [];
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.15).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-    _rotateAnimation = Tween<double>(begin: -0.1, end: 0.1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _loadHistory();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _weather.dispose();
+    _tabs.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: Transform.rotate(
-            angle: _rotateAnimation.value,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-                shape: BoxShape.circle,
-                boxShadow: AppTheme.primaryGlow,
+  Future<void> _loadHistory() async {
+    final values = await _service.getSavedOutfits();
+    if (mounted) setState(() => _history = values ?? []);
+  }
+
+  Future<void> _generate() async {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _loading = true;
+      _error = null;
+      _result = null;
+    });
+    final result = await _service.getOutfitRecommendation(
+      occasion: _occasion,
+      weather: _weather.text.trim(),
+      useLiveWeather: _liveWeather,
+    );
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _result = result;
+      _error = result == null
+          ? 'Your stylist could not complete that look. Add a few wardrobe pieces or try again.'
+          : null;
+    });
+    result == null ? HapticFeedback.vibrate() : HapticFeedback.heavyImpact();
+  }
+
+  Future<void> _save() async {
+    if (_result == null) return;
+    HapticFeedback.mediumImpact();
+    final saved = await _service.saveOutfit(_result!);
+    if (!mounted) return;
+    if (saved == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save this outfit.')),
+      );
+      return;
+    }
+    await _loadHistory();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SuccessCheck(),
+            const SizedBox(height: 15),
+            Text('Outfit saved', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 5),
+            const Text(
+              'It’s waiting in your lookbook.',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Nice'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _delete(int id) async {
+    HapticFeedback.mediumImpact();
+    if (await _service.deleteOutfit(id)) _loadHistory();
+  }
+
+  Future<void> _share(int outfitId) async {
+    final values = await _friends.getFriends();
+    if (!mounted) return;
+    if (values.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add a friend before sharing a look.')),
+      );
+      return;
+    }
+    final friendId = await showModalBottomSheet<int>(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 26),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Share with', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            for (final friend in values)
+              ListTile(
+                leading: CircleAvatar(
+                  child: Text('${friend['friend_email']}'[0].toUpperCase()),
+                ),
+                title: Text(friend['friend_email'] ?? 'Friend'),
+                trailing: const Icon(Icons.arrow_forward_rounded),
+                onTap: () =>
+                    Navigator.pop(context, friend['friend_user_id'] as int),
               ),
-              child: const Icon(
-                Icons.auto_awesome,
-                color: Colors.white,
-                size: 36,
+          ],
+        ),
+      ),
+    );
+    if (friendId == null) return;
+    HapticFeedback.mediumImpact();
+    final ok = await _friends.shareOutfit(outfitId, friendId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? 'Look shared privately.' : 'Could not share this look.',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: AppPage(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppHeader(
+            eyebrow: 'Personal AI stylist',
+            title: 'What are we dressing for?',
+            subtitle: 'A thoughtful look, made only from pieces you own.',
+          ),
+          const SizedBox(height: 20),
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.white,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(color: AppTheme.borderLight),
+            ),
+            child: TabBar(
+              controller: _tabs,
+              indicator: BoxDecoration(
+                color: AppTheme.black,
+                borderRadius: BorderRadius.circular(99),
+              ),
+              labelColor: Colors.white,
+              indicatorSize: TabBarIndicatorSize.tab,
+              tabs: [
+                Tab(text: 'Create a look'),
+                Tab(text: 'Saved  ${_history.length}'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Expanded(
+            child: TabBarView(
+              controller: _tabs,
+              children: [_createView, _savedView],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget get _createView => ListView(
+    padding: EdgeInsets.zero,
+    children: [
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 900;
+          final controls = _StylistControls(
+            occasions: _occasions,
+            selected: _occasion,
+            liveWeather: _liveWeather,
+            weather: _weather,
+            onOccasion: (value) {
+              HapticFeedback.selectionClick();
+              setState(() => _occasion = value);
+            },
+            onLiveWeather: (value) {
+              HapticFeedback.selectionClick();
+              setState(() => _liveWeather = value);
+            },
+            onGenerate: _generate,
+            loading: _loading,
+          );
+          final output = AnimatedSwitcher(
+            duration: const Duration(milliseconds: 420),
+            switchInCurve: Curves.easeOutCubic,
+            child: _loading
+                ? const _ThinkingCard(key: ValueKey('thinking'))
+                : _result != null
+                ? _ResultCard(
+                    key: const ValueKey('result'),
+                    result: _result!,
+                    onSave: _save,
+                  )
+                : _error != null
+                ? _ErrorCard(
+                    key: const ValueKey('error'),
+                    message: _error!,
+                    onRetry: _generate,
+                  )
+                : const _StylistIntro(key: ValueKey('intro')),
+          );
+          return wide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 8, child: controls),
+                    const SizedBox(width: 18),
+                    Expanded(flex: 11, child: output),
+                  ],
+                )
+              : Column(
+                  children: [controls, const SizedBox(height: 16), output],
+                );
+        },
+      ),
+      const SizedBox(height: 20),
+    ],
+  );
+
+  Widget get _savedView => _history.isEmpty
+      ? const EmptyState(
+          icon: Icons.bookmark_border_rounded,
+          title: 'Your lookbook is empty',
+          subtitle: 'Save a recommendation and it will live here.',
+        )
+      : RefreshIndicator(
+          onRefresh: _loadHistory,
+          child: ListView.separated(
+            padding: const EdgeInsets.only(bottom: 16),
+            itemCount: _history.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (_, index) {
+              final outfit = _history[index] as Map<String, dynamic>;
+              return Reveal(
+                delay: Duration(milliseconds: 35 * index.clamp(0, 7)),
+                child: _SavedLook(
+                  outfit: outfit,
+                  onShare: () => _share(outfit['id'] as int),
+                  onDelete: () => _delete(outfit['id'] as int),
+                ),
+              );
+            },
+          ),
+        );
+}
+
+class _StylistControls extends StatelessWidget {
+  const _StylistControls({
+    required this.occasions,
+    required this.selected,
+    required this.liveWeather,
+    required this.weather,
+    required this.onOccasion,
+    required this.onLiveWeather,
+    required this.onGenerate,
+    required this.loading,
+  });
+  final List<(String, IconData)> occasions;
+  final String selected;
+  final bool liveWeather;
+  final TextEditingController weather;
+  final ValueChanged<String> onOccasion;
+  final ValueChanged<bool> onLiveWeather;
+  final VoidCallback onGenerate;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Choose a mood', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 13),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: occasions.map((value) {
+              final active = value.$1 == selected;
+              return ChoiceChip(
+                avatar: Icon(
+                  value.$2,
+                  size: 17,
+                  color: active ? Colors.white : AppTheme.midGray,
+                ),
+                label: Text(value.$1[0].toUpperCase() + value.$1.substring(1)),
+                selected: active,
+                labelStyle: TextStyle(
+                  color: active ? Colors.white : AppTheme.black,
+                  fontWeight: FontWeight.w700,
+                ),
+                onSelected: (_) => onOccasion(value.$1),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 18),
+          Semantics(
+            button: true,
+            toggled: liveWeather,
+            label: 'Use live weather',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              onTap: () => onLiveWeather(!liveWeather),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.lavender,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.cloud_outlined, color: AppTheme.primary),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Use live weather',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            'From your saved location',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(value: liveWeather, onChanged: onLiveWeather),
+                  ],
+                ),
               ),
             ),
           ),
-        );
-      },
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            child: liveWeather
+                ? const SizedBox(height: 14)
+                : Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: TextField(
+                      controller: weather,
+                      decoration: const InputDecoration(
+                        labelText: 'Describe the weather',
+                        prefixIcon: Icon(Icons.thermostat_outlined),
+                      ),
+                    ),
+                  ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: loading ? null : onGenerate,
+              icon: const Icon(Icons.auto_awesome_rounded),
+              label: const Text('Generate outfit'),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ThinkingCard extends StatelessWidget {
+  const _ThinkingCard({super.key});
+  @override
+  Widget build(BuildContext context) => const Card(
+    child: Padding(
+      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 42),
+      child: LottieStatus(
+        asset: 'assets/animations/ai_thinking.json',
+        title: 'Styling your wardrobe',
+        subtitle: 'Balancing occasion, weather, color, and comfort…',
+        size: 150,
+      ),
+    ),
+  );
+}
+
+class _StylistIntro extends StatelessWidget {
+  const _StylistIntro({super.key});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(26),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        colors: [AppTheme.black, AppTheme.charcoal],
+      ),
+      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+      boxShadow: AppTheme.mediumShadow,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .1),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(Icons.auto_awesome, color: AppTheme.secondaryLight),
+        ),
+        const SizedBox(height: 40),
+        Text(
+          'Made from your wardrobe.\nMade for this moment.',
+          style: Theme.of(
+            context,
+          ).textTheme.headlineMedium?.copyWith(color: Colors.white),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Your stylist never invents pieces you do not own.',
+          style: TextStyle(color: Colors.white60),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({super.key, required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: EmptyState(
+        icon: Icons.auto_awesome_outlined,
+        title: 'The stylist needs another moment',
+        subtitle: message,
+        action: OutlinedButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Try again'),
+        ),
+      ),
+    ),
+  );
+}
+
+class _ResultCard extends StatelessWidget {
+  const _ResultCard({super.key, required this.result, required this.onSave});
+  final Map<String, dynamic> result;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = result['items'] as List<dynamic>? ?? [];
+    final explanation = result['explanation'] as List<dynamic>? ?? [];
+    return Reveal(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const SuccessCheck(size: 48),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          result['title'] ?? 'Your look',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        Text(
+                          result['weather_summary'] ?? '',
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.lavender,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      '${result['model_used'] ?? 'AI'}',
+                      style: const TextStyle(
+                        color: AppTheme.primary,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (items.isNotEmpty)
+                SizedBox(
+                  height: 174,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 10),
+                    itemBuilder: (_, index) => _ResultItem(
+                      item: items[index] as Map<String, dynamic>,
+                      index: index,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              for (final line in explanation)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 7),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 7),
+                        child: CircleAvatar(
+                          radius: 3,
+                          backgroundColor: AppTheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text('• $line')),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onSave,
+                  icon: const Icon(Icons.bookmark_add_outlined),
+                  label: const Text('Save to lookbook'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultItem extends StatelessWidget {
+  const _ResultItem({required this.item, required this.index});
+  final Map<String, dynamic> item;
+  final int index;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 132,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Hero(
+            tag: 'recommendation-${item['clothing_item_id']}-$index',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.network(
+                '${Constants.baseUrl}${item['image_url']}',
+                headers: AuthService.cachedHeaders,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const ColoredBox(
+                  color: AppTheme.offWhite,
+                  child: Center(child: Icon(Icons.checkroom_outlined)),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          item['name'] ?? item['category'] ?? 'Piece',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+        ),
+        Text(
+          item['reason'] ?? '',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10),
+        ),
+      ],
+    ),
+  );
+}
+
+class _SavedLook extends StatelessWidget {
+  const _SavedLook({
+    required this.outfit,
+    required this.onShare,
+    required this.onDelete,
+  });
+  final Map<String, dynamic> outfit;
+  final VoidCallback onShare;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = outfit['items'] as List<dynamic>? ?? [];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 72,
+              height: 72,
+              child: items.isEmpty
+                  ? Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.lavender,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome,
+                        color: AppTheme.primary,
+                      ),
+                    )
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        '${Constants.baseUrl}${items.first['item']['image_url']}',
+                        headers: AuthService.cachedHeaders,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    outfit['title'] ?? 'Saved look',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${outfit['occasion'] ?? 'Everyday'} · ${items.length} pieces',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  if (outfit['weather'] != null)
+                    Text(
+                      outfit['weather'],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Share look',
+              onPressed: onShare,
+              icon: const Icon(Icons.ios_share_outlined),
+            ),
+            IconButton(
+              tooltip: 'Delete look',
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline_rounded),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

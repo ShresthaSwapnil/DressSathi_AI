@@ -1,23 +1,14 @@
-import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 
 class Constants {
-  static const String _apiEnv = String.fromEnvironment('API_URL');
+  static const _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
 
-  // Use defined API_URL if provided, else use emulator/simulator fallbacks in debug mode
+  // Use 10.0.2.2 for Android emulator to reach localhost, 127.0.0.1 for iOS/Web
   static String get baseUrl {
-    if (_apiEnv.isNotEmpty) {
-      return _apiEnv;
+    if (_configuredBaseUrl.isNotEmpty) {
+      return _configuredBaseUrl.replaceFirst(RegExp(r'/$'), '');
     }
-
-    if (kReleaseMode) {
-      throw StateError(
-        'Missing API_URL configuration in release build. '
-        'Please build the app using: flutter build <target> --dart-define=API_URL=https://your-api.com'
-      );
-    }
-
-    // Default emulator/simulator fallback URLs for local debugging only
     if (kIsWeb) {
       return 'http://localhost:8000';
     } else if (Platform.isAndroid) {

@@ -1,476 +1,301 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../utils/app_theme.dart';
+import '../widgets/app_ui.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
 
-  @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
-}
-
-class _OnboardingScreenState extends State<OnboardingScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
-  late Animation<double> _fadeIn;
-  late Animation<Offset> _slideUp;
-  late Animation<double> _cardScale;
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-    _fadeIn = CurvedAnimation(
-      parent: _animController,
-      curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
-    );
-    _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.12),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animController,
-      curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic),
-    ));
-    _cardScale = Tween<double>(begin: 0.85, end: 1.0).animate(CurvedAnimation(
-      parent: _animController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
-    ));
-    _animController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
-
-  void _navigateToLogin() {
-    HapticFeedback.selectionClick();
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const LoginScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 350),
-      ),
-    );
-  }
-
-  void _navigateToRegister() {
+  void _open(BuildContext context, Widget page) {
     HapticFeedback.mediumImpact();
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const RegisterScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 350),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final imageCardHeight = screenHeight * 0.38;
-
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: Scaffold(
-        backgroundColor: AppTheme.white,
-        body: Column(
-          children: [
-            // ── Top: Dark image area ──
-            ScaleTransition(
-              scale: _cardScale,
-              child: SizedBox(
-                height: imageCardHeight + 60,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    // Dark background
-                    Container(
-                      height: imageCardHeight,
-                      width: double.infinity,
-                      color: AppTheme.offBlack,
-                    ),
-
-                    // Logo + app name on top of dark bg
-                    Positioned(
-                      top: MediaQuery.of(context).padding.top + 16,
-                      left: 24,
-                      child: Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: Image.asset(
-                              'assets/logo.png',
-                              width: 28,
-                              height: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'DressMate',
-                            style: TextStyle(
-                              color: AppTheme.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Tilted overlapping cards
-                    Positioned(
-                      top: MediaQuery.of(context).padding.top + 56,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: SizedBox(
-                          width: screenWidth * 0.7,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Back card (tilted left)
-                              Positioned(
-                                left: 0,
-                                child: Transform.rotate(
-                                  angle: -6 * math.pi / 180,
-                                  child: Container(
-                                    width: screenWidth * 0.44,
-                                    height: imageCardHeight * 0.82,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme.black
-                                              .withValues(alpha: 0.25),
-                                          blurRadius: 24,
-                                          offset: const Offset(-4, 8),
-                                        ),
-                                      ],
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: Image.asset(
-                                      'assets/onboarding_1.png',
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Front card (tilted right)
-                              Positioned(
-                                right: 0,
-                                child: Transform.rotate(
-                                  angle: 4 * math.pi / 180,
-                                  child: Container(
-                                    width: screenWidth * 0.44,
-                                    height: imageCardHeight * 0.82,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme.black
-                                              .withValues(alpha: 0.3),
-                                          blurRadius: 24,
-                                          offset: const Offset(4, 8),
-                                        ),
-                                      ],
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: Image.asset(
-                                      'assets/onboarding_2.png',
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // "Joined by" badge
-                    Positioned(
-                      left: 20,
-                      bottom: 20,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.offBlack,
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radiusPill,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Overlapping mini avatars
-                            SizedBox(
-                              width: 40,
-                              height: 24,
-                              child: Stack(
-                                children: [
-                                  Positioned(
-                                    left: 0,
-                                    child: _buildMiniAvatar(AppTheme.primary),
-                                  ),
-                                  Positioned(
-                                    left: 16,
-                                    child: _buildMiniAvatar(AppTheme.secondary),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Text(
-                              'Join the Style Revolution',
-                              style: TextStyle(
-                                color: AppTheme.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: -0.1,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // ── Bottom: Text + buttons ──
-            Expanded(
-              child: FadeTransition(
-                opacity: _fadeIn,
-                child: SlideTransition(
-                  position: _slideUp,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(28, 24, 28, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Tag
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusPill,
-                            ),
-                          ),
-                          child: const Text(
-                            'AI-POWERED STYLING',
-                            style: TextStyle(
-                              color: AppTheme.primary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Heading
-                        RichText(
-                          text: const TextSpan(
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.black,
-                              height: 1.15,
-                              letterSpacing: -0.8,
-                            ),
-                            children: [
-                              TextSpan(text: 'Your Personal\n'),
-                              TextSpan(
-                                text: 'Style Companion.',
-                                style: TextStyle(
-                                  color: AppTheme.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // Subtitle
-                        const Text(
-                          'Organize your wardrobe, get AI outfit\nrecommendations, and share your style\nwith friends effortlessly.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.midGray,
-                            height: 1.55,
-                            fontWeight: FontWeight.w400,
-                            letterSpacing: -0.1,
-                          ),
-                        ),
-
-                        const Spacer(),
-
-                        // Get Started button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: ElevatedButton(
-                            onPressed: _navigateToRegister,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primary,
-                              foregroundColor: AppTheme.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  AppTheme.radiusPill,
-                                ),
-                              ),
-                            ),
-                            child: const Text(
-                              'Get Started',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Login button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: OutlinedButton(
-                            onPressed: _navigateToLogin,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.primary,
-                              side: const BorderSide(
-                                color: AppTheme.primary,
-                                width: 1.5,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  AppTheme.radiusPill,
-                                ),
-                              ),
-                            ),
-                            child: const Text(
-                              'Login',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Footer
-                        Center(
-                          child: Column(
-                            children: [
-                              Text(
-                                '© 2026 DressMate. All Rights Reserved.',
-                                style: TextStyle(
-                                  color: AppTheme.lightGray,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Privacy',
-                                    style: TextStyle(
-                                      color: AppTheme.midGray,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                    ),
-                                    child: Text(
-                                      'Terms',
-                                      style: TextStyle(
-                                        color: AppTheme.midGray,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    'Contact',
-                                    style: TextStyle(
-                                      color: AppTheme.midGray,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(
-                          height: MediaQuery.of(context).padding.bottom + 12,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+        transitionDuration: const Duration(milliseconds: 430),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        pageBuilder: (_, animation, _) => FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          ),
+          child: page,
         ),
       ),
     );
   }
 
-  Widget _buildMiniAvatar(Color color) {
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(color: AppTheme.offBlack, width: 2),
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 860;
+          final visual = Reveal(child: _Visual(wide: wide));
+          final pitch = _Pitch(
+            wide: wide,
+            onRegister: () => _open(context, const RegisterScreen()),
+            onLogin: () => _open(context, const LoginScreen()),
+          );
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1320),
+              child: Padding(
+                padding: EdgeInsets.all(wide ? 24 : 16),
+                child: wide
+                    ? Row(
+                        children: [
+                          Expanded(flex: 11, child: visual),
+                          const SizedBox(width: 56),
+                          Expanded(flex: 9, child: pitch),
+                        ],
+                      )
+                    : ListView(
+                        children: [
+                          SizedBox(
+                            height: constraints.maxHeight * 0.48,
+                            child: visual,
+                          ),
+                          const SizedBox(height: 32),
+                          pitch,
+                        ],
+                      ),
+              ),
+            ),
+          );
+        },
       ),
-      child: const Icon(
-        Icons.person,
-        color: AppTheme.white,
-        size: 12,
+    ),
+  );
+}
+
+class _Visual extends StatelessWidget {
+  const _Visual({required this.wide});
+
+  final bool wide;
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset('assets/onboarding_1.png', fit: BoxFit.cover),
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x10111217), Color(0xB8111217)],
+            ),
+          ),
+        ),
+        Positioned(
+          top: 22,
+          left: 22,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            decoration: BoxDecoration(
+              color: AppTheme.white.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.auto_awesome, color: AppTheme.primary, size: 16),
+                SizedBox(width: 7),
+                Text(
+                  'AI-powered styling',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          left: 24,
+          right: 24,
+          bottom: 24,
+          child: Row(
+            children: [
+              Expanded(
+                child: _GlassStat(value: '1 tap', label: 'to build an outfit'),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _GlassStat(value: '100%', label: 'your own clothes'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _GlassStat extends StatelessWidget {
+  const _GlassStat({required this.value, required this.label});
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: AppTheme.black.withValues(alpha: 0.64),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: Colors.white24),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 11),
+        ),
+      ],
+    ),
+  );
+}
+
+class _Pitch extends StatelessWidget {
+  const _Pitch({
+    required this.wide,
+    required this.onRegister,
+    required this.onLogin,
+  });
+
+  final bool wide;
+  final VoidCallback onRegister;
+  final VoidCallback onLogin;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Reveal(
+        delay: const Duration(milliseconds: 80),
+        child: Row(
+          children: [
+            Hero(
+              tag: 'brand-logo',
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset('assets/logo.png', width: 48, height: 48),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'DressMate',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ],
+        ),
       ),
-    );
-  }
+      SizedBox(height: wide ? 54 : 28),
+      Reveal(
+        delay: const Duration(milliseconds: 150),
+        child: Text(
+          'A wardrobe that\nthinks with you.',
+          style: Theme.of(
+            context,
+          ).textTheme.displayLarge?.copyWith(fontSize: wide ? 56 : 40),
+        ),
+      ),
+      const SizedBox(height: 18),
+      Reveal(
+        delay: const Duration(milliseconds: 220),
+        child: Text(
+          'Organize what you own, get weather-aware outfit ideas, and share your style with people you trust.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: AppTheme.textSecondary),
+        ),
+      ),
+      const SizedBox(height: 28),
+      Reveal(
+        delay: const Duration(milliseconds: 290),
+        child: Wrap(
+          spacing: 9,
+          runSpacing: 9,
+          children: const [
+            _Feature(icon: Icons.checkroom_outlined, label: 'Digital closet'),
+            _Feature(icon: Icons.cloud_outlined, label: 'Live weather'),
+            _Feature(icon: Icons.people_outline, label: 'Private sharing'),
+          ],
+        ),
+      ),
+      const SizedBox(height: 36),
+      Reveal(
+        delay: const Duration(milliseconds: 360),
+        child: Column(
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onRegister,
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: const Text('Get Started'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: onLogin,
+                child: const Text('Login'),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 18),
+      const Text(
+        'Private by design. Your wardrobe stays yours.',
+        style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+      ),
+    ],
+  );
+}
+
+class _Feature extends StatelessWidget {
+  const _Feature({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+    decoration: BoxDecoration(
+      color: AppTheme.white,
+      borderRadius: BorderRadius.circular(99),
+      border: Border.all(color: AppTheme.borderLight),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: AppTheme.primary),
+        const SizedBox(width: 7),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+      ],
+    ),
+  );
 }

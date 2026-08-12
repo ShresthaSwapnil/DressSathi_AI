@@ -9,10 +9,26 @@ select = [
     "I",  # isort
     "C",  # flake8-comprehensions
     "B",  # flake8-bugbear
-    "UP", # pyupgrade
 ]
-ignore = ["E501"] # line length handled by formatter
+ignore = [
+    "B008", # FastAPI dependency injection uses calls in defaults by design
+    "E501", # line length handled by formatter
+]
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.pytest.ini_options]
+markers = [
+    "blackbox: tests behavior through the public HTTP API",
+    "whitebox: tests internal validation and fallback logic",
+]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+omit = ["migrations/*", "seed_db.py", "tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

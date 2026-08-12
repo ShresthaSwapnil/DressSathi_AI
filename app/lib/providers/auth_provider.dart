@@ -100,4 +100,12 @@ class AuthProvider with ChangeNotifier {
     _user = null;
     notifyListeners();
   }
+
+  Future<bool> updateProfile(Map<String, dynamic> values) async {
+    final updated = await _authService.updateProfile(values);
+    if (updated == null) return false;
+    _user = updated;
+    notifyListeners();
+    return true;
+  }
 }

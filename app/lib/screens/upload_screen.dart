@@ -1,9 +1,13 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../services/item_service.dart';
 import '../utils/app_theme.dart';
+import '../widgets/app_ui.dart';
 
 class UploadScreen extends StatefulWidget {
   const UploadScreen({super.key});
@@ -13,881 +17,580 @@ class UploadScreen extends StatefulWidget {
 }
 
 class _UploadScreenState extends State<UploadScreen> {
-  final ItemService _itemService = ItemService();
-  final _nameController = TextEditingController();
-  final _colorController = TextEditingController();
-  final _styleController = TextEditingController();
-  final _seasonController = TextEditingController();
+  final _service = ItemService();
+  final _picker = ImagePicker();
+  final _name = TextEditingController();
+  final _color = TextEditingController();
+  final _style = TextEditingController();
+  final _season = TextEditingController();
+  final _categories = const [
+    'Tops',
+    'Bottoms',
+    'Dresses',
+    'Outerwear',
+    'Shoes',
+    'Accessories',
+  ];
+  XFile? _front;
+  XFile? _back;
+  String _category = 'Tops';
+  bool _analyzing = false;
+  bool _uploading = false;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _colorController.dispose();
-    _styleController.dispose();
-    _seasonController.dispose();
+    _name.dispose();
+    _color.dispose();
+    _style.dispose();
+    _season.dispose();
     super.dispose();
   }
 
-  XFile? _imageFile;
-  XFile? _backImageFile;
-  bool _isLoading = false;
-  bool _isAnalyzing = false;
-  final ImagePicker _picker = ImagePicker();
-  String _selectedCategory = 'Tops';
-
-  final List<Map<String, dynamic>> _categoriesData = [
-    {'label': 'Tops', 'icon': Icons.checkroom_rounded},
-    {'label': 'Bottoms', 'icon': Icons.style_outlined},
-    {'label': 'Dresses', 'icon': Icons.woman_rounded},
-    {'label': 'Outerwear', 'icon': Icons.layers_outlined},
-    {'label': 'Shoes', 'icon': Icons.hiking_rounded},
-    {'label': 'Accessories', 'icon': Icons.watch_rounded},
-  ];
-
-  Future<void> _pickImage(ImageSource source, bool isFront) async {
-    final pickedFile = await _picker.pickImage(source: source);
-    if (pickedFile != null) {
-      setState(() {
-        if (isFront) {
-          _imageFile = pickedFile;
-          _isAnalyzing = true;
-        } else {
-          _backImageFile = pickedFile;
-        }
-      });
-
-      if (isFront) {
-        final tags = await _itemService.analyzeImage(pickedFile);
-        if (mounted && tags != null) {
-          setState(() {
-            if (tags['category'] != null) {
-              final aiCat = tags['category'].toString().toLowerCase();
-              for (var c in _categoriesData) {
-                if (c['label'].toString().toLowerCase() == aiCat) {
-                  _selectedCategory = c['label'];
-                  break;
-                }
-              }
-            }
-            if (tags['color'] != null) {
-              _colorController.text = tags['color'].toString();
-            }
-            if (tags['style'] != null) {
-              _styleController.text = tags['style'].toString();
-            }
-            if (tags['season'] != null) {
-              _seasonController.text = tags['season'].toString();
-            }
-            if (_nameController.text.isEmpty &&
-                tags['color'] != null &&
-                tags['category'] != null) {
-              _nameController.text = "${tags['color']} ${tags['category']}";
-            }
-            _isAnalyzing = false;
-          });
-        } else {
-          if (mounted) setState(() => _isAnalyzing = false);
-        }
-      }
-    }
-  }
-
-  Future<void> _uploadAndSave() async {
-    if (_imageFile == null) {
-      _showError('Please select a front image first');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      // 1. Upload front image
-      final imageUrl = await _itemService.uploadImage(_imageFile!);
-      if (imageUrl == null) {
-        _showError('Failed to upload front image.');
-        return;
-      }
-
-      // 2. Upload back image if selected
-      String? backImageUrl;
-      if (_backImageFile != null) {
-        backImageUrl = await _itemService.uploadImage(_backImageFile!);
-        if (backImageUrl == null) {
-          _showError('Failed to upload back image.');
-          return;
-        }
-      }
-
-      // 3. Create the clothing item with both URLs
-      final item = await _itemService.createItem(
-        imageUrl: imageUrl,
-        backImageUrl: backImageUrl,
-        name: _nameController.text.isNotEmpty ? _nameController.text : null,
-        category: _selectedCategory,
-        color: _colorController.text.isNotEmpty ? _colorController.text : null,
-        style: _styleController.text.isNotEmpty ? _styleController.text : null,
-        season: _seasonController.text.isNotEmpty
-            ? _seasonController.text
-            : null,
-      );
-
-      if (item != null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: const [
-                  Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-                  SizedBox(width: 10),
-                  Text('Item added to wardrobe successfully!'),
-                ],
-              ),
-              backgroundColor: AppTheme.successGreen,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
-            ),
-          );
-          Navigator.pop(context, true);
-        }
-      } else {
-        _showError('Failed to save item details.');
-      }
-    } catch (e) {
-      _showError('An error occurred while uploading.');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
+  Future<ImageSource?> _source() => showModalBottomSheet<ImageSource>(
+    context: context,
+    builder: (context) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 26),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Add a photo', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 16),
+          Row(
             children: [
-              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              Expanded(
+                child: _SourceButton(
+                  icon: Icons.camera_alt_outlined,
+                  label: 'Camera',
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                ),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: Text(message)),
+              Expanded(
+                child: _SourceButton(
+                  icon: Icons.photo_library_outlined,
+                  label: 'Library',
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                ),
+              ),
             ],
           ),
-          backgroundColor: AppTheme.errorRed,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _pick(bool front) async {
+    HapticFeedback.selectionClick();
+    final source = await _source();
+    if (source == null) return;
+    final file = await _picker.pickImage(
+      source: source,
+      imageQuality: 88,
+      maxWidth: 1800,
+    );
+    if (file == null || !mounted) return;
+    setState(() {
+      if (front) {
+        _front = file;
+        _analyzing = true;
+      } else {
+        _back = file;
+      }
+    });
+    HapticFeedback.mediumImpact();
+    if (!front) return;
+    final tags = await _service.analyzeImage(file);
+    if (!mounted) return;
+    setState(() {
+      _analyzing = false;
+      if (tags == null) return;
+      final category = tags['category']?.toString();
+      final matched = _categories
+          .where((value) => value.toLowerCase() == category?.toLowerCase())
+          .firstOrNull;
+      if (matched != null) _category = matched;
+      _color.text = tags['color']?.toString() ?? _color.text;
+      _style.text = tags['style']?.toString() ?? _style.text;
+      _season.text = tags['season']?.toString() ?? _season.text;
+      if (_name.text.isEmpty &&
+          tags['color'] != null &&
+          tags['category'] != null) {
+        _name.text = '${tags['color']} ${tags['category']}';
+      }
+    });
+    if (tags != null) HapticFeedback.heavyImpact();
+  }
+
+  Future<void> _save() async {
+    if (_front == null) {
+      HapticFeedback.vibrate();
+      _message('Add a front photo first.');
+      return;
+    }
+    HapticFeedback.mediumImpact();
+    setState(() => _uploading = true);
+    try {
+      final frontUrl = await _service.uploadImage(_front!);
+      if (frontUrl == null) {
+        return _message('The front image could not be uploaded.');
+      }
+      final backUrl = _back == null ? null : await _service.uploadImage(_back!);
+      if (_back != null && backUrl == null) {
+        return _message('The back image could not be uploaded.');
+      }
+      final item = await _service.createItem(
+        imageUrl: frontUrl,
+        backImageUrl: backUrl,
+        name: _name.text.trim().isEmpty ? null : _name.text.trim(),
+        category: _category,
+        color: _color.text.trim().isEmpty ? null : _color.text.trim(),
+        style: _style.text.trim().isEmpty ? null : _style.text.trim(),
+        season: _season.text.trim().isEmpty ? null : _season.text.trim(),
+      );
+      if (!mounted) return;
+      if (item == null) return _message('The piece could not be saved.');
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SuccessCheck(),
+              const SizedBox(height: 16),
+              Text(
+                'Welcome to the wardrobe',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 5),
+              const Text(
+                'Your new piece is ready to style.',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ],
           ),
         ),
+      ).timeout(
+        const Duration(milliseconds: 950),
+        onTimeout: () {
+          if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+        },
       );
+      if (mounted) Navigator.pop(context, true);
+    } catch (_) {
+      _message('Something interrupted the upload. Try again.');
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
   }
 
-  Widget _buildImagePlaceholder(
-    IconData icon,
-    String label, {
-    required bool isRequired,
-  }) {
-    return CustomPaint(
-      painter: DashedBorderPainter(
-        color: isRequired ? AppTheme.secondary.withValues(alpha: 0.4) : AppTheme.borderLight,
-      ),
-      child: Container(
-        height: 180,
-        width: double.infinity,
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: (isRequired ? AppTheme.secondary : AppTheme.primary)
-                    .withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 22,
-                color: isRequired ? AppTheme.secondary : AppTheme.primary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              isRequired ? 'Required' : 'Optional',
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDeleteOverlay(VoidCallback onDelete) {
-    return Positioned(
-      top: 10,
-      right: 10,
-      child: GestureDetector(
-        onTap: () {
-          Feedback.forTap(context);
-          onDelete();
-        },
-        child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.65),
-            shape: BoxShape.circle,
-            boxShadow: AppTheme.softShadow,
-          ),
-          child: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
-        ),
-      ),
-    );
+  void _message(String text) {
+    if (!mounted) return;
+    setState(() => _uploading = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.surfaceWhite,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.cardWhite,
-              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              boxShadow: AppTheme.softShadow,
-              border: Border.all(color: AppTheme.borderLight),
-            ),
-            child: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 16,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Add New Item',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.4,
-          ),
-        ),
-        centerTitle: true,
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      leading: IconButton.outlined(
+        tooltip: 'Close',
+        onPressed: () => Navigator.pop(context),
+        icon: const Icon(Icons.close_rounded),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Dual Image Slots ──
-            Row(
-              children: [
-                // ── Front Image ──
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Text(
-                            'Front View',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.textPrimary,
+      title: const Text('Add a piece'),
+      actions: [
+        TextButton(
+          onPressed: _uploading ? null : _save,
+          child: const Text('Save'),
+        ),
+        const SizedBox(width: 10),
+      ],
+    ),
+    body: Stack(
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 850;
+            final photos = _PhotoSection(
+              front: _front,
+              back: _back,
+              analyzing: _analyzing,
+              onFront: () => _pick(true),
+              onBack: () => _pick(false),
+              onRemoveFront: () => setState(() => _front = null),
+              onRemoveBack: () => setState(() => _back = null),
+            );
+            final details = _DetailsSection(
+              categories: _categories,
+              category: _category,
+              onCategory: (value) {
+                HapticFeedback.selectionClick();
+                setState(() => _category = value);
+              },
+              name: _name,
+              color: _color,
+              style: _style,
+              season: _season,
+              uploading: _uploading,
+              onSave: _save,
+            );
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1120),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
+                  child: wide
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(flex: 11, child: photos),
+                            const SizedBox(width: 34),
+                            Expanded(
+                              flex: 9,
+                              child: SingleChildScrollView(child: details),
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '*',
-                            style: TextStyle(
-                              color: AppTheme.secondary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      GestureDetector(
-                        onTap: () => _showImagePicker(true),
-                        child: Container(
-                          height: 180,
-                          decoration: BoxDecoration(
-                            color: AppTheme.cardWhite,
-                            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                            boxShadow: AppTheme.softShadow,
-                          ),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              if (_imageFile == null)
-                                _buildImagePlaceholder(
-                                  Icons.checkroom_rounded,
-                                  'Add Front View',
-                                  isRequired: true,
-                                )
-                              else ...[
-                                Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                                    image: DecorationImage(
-                                      image: kIsWeb
-                                          ? NetworkImage(_imageFile!.path) as ImageProvider
-                                          : FileImage(File(_imageFile!.path)) as ImageProvider,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                                // Analysis Loader Overlay
-                                if (_isAnalyzing)
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.5),
-                                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                                    ),
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          const SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.5,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white.withValues(alpha: 0.2),
-                                              borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: const [
-                                                Icon(Icons.auto_awesome, color: Colors.white, size: 12),
-                                                SizedBox(width: 4),
-                                                Text(
-                                                  'AI Scanning...',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                if (!_isAnalyzing)
-                                  _buildDeleteOverlay(() {
-                                    setState(() {
-                                      _imageFile = null;
-                                    });
-                                  }),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // ── Back Image ──
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Back View',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      GestureDetector(
-                        onTap: () => _showImagePicker(false),
-                        child: Container(
-                          height: 180,
-                          decoration: BoxDecoration(
-                            color: AppTheme.cardWhite,
-                            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                            boxShadow: AppTheme.softShadow,
-                          ),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              if (_backImageFile == null)
-                                _buildImagePlaceholder(
-                                  Icons.flip_camera_android_rounded,
-                                  'Add Back View',
-                                  isRequired: false,
-                                )
-                              else ...[
-                                Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                                    image: DecorationImage(
-                                      image: kIsWeb
-                                          ? NetworkImage(_backImageFile!.path) as ImageProvider
-                                          : FileImage(File(_backImageFile!.path)) as ImageProvider,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                                _buildDeleteOverlay(() {
-                                  setState(() {
-                                    _backImageFile = null;
-                                  });
-                                }),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
-
-            // ── Category Section ──
-            Row(
-              children: [
-                Container(
-                  width: 4,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Category',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 10,
-              children: _categoriesData.map((cat) {
-                final isSelected = _selectedCategory == cat['label'];
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = cat['label']),
-                  child: AnimatedContainer(
-                    duration: AppTheme.durationFast,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: isSelected ? AppTheme.primaryGradient : null,
-                      color: isSelected ? null : AppTheme.cardWhite,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-                      border: isSelected
-                          ? null
-                          : Border.all(color: AppTheme.borderLight, width: 1.5),
-                      boxShadow: isSelected ? AppTheme.primaryGlow : AppTheme.softShadow,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          cat['icon'],
-                          size: 16,
-                          color: isSelected ? Colors.white : AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          cat['label'],
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : AppTheme.textSecondary,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 28),
-
-            // ── Text Inputs Section ──
-            Row(
-              children: [
-                Container(
-                  width: 4,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: AppTheme.secondary,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Clothing Details',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // ── Item Name ──
-            const Text(
-              'Item Name',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(boxShadow: AppTheme.softShadow),
-              child: TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g., Classic Navy Blazer',
-                  prefixIcon: Icon(Icons.label_outline_rounded, size: 20),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ── Color ──
-            const Text(
-              'Color',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(boxShadow: AppTheme.softShadow),
-              child: TextField(
-                controller: _colorController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g., Dark Navy Blue',
-                  prefixIcon: Icon(Icons.palette_outlined, size: 20),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ── Style ──
-            const Text(
-              'Style',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(boxShadow: AppTheme.softShadow),
-              child: TextField(
-                controller: _styleController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g., Smart Casual',
-                  prefixIcon: Icon(Icons.style_outlined, size: 20),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ── Season ──
-            const Text(
-              'Season',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(boxShadow: AppTheme.softShadow),
-              child: TextField(
-                controller: _seasonController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g., Autumn / Winter',
-                  prefixIcon: Icon(Icons.wb_sunny_outlined, size: 20),
-                ),
-              ),
-            ),
-            const SizedBox(height: 36),
-
-            // ── CTA Button ──
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: (!_isLoading && _imageFile != null) ? AppTheme.primaryGradient : null,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  boxShadow: (!_isLoading && _imageFile != null) ? AppTheme.primaryGlow : null,
-                ),
-                child: ElevatedButton.icon(
-                  onPressed: (_isLoading || _imageFile == null) ? null : _uploadAndSave,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: (_imageFile == null)
-                        ? AppTheme.paleGray
-                        : (_isLoading ? AppTheme.primaryNavy : Colors.transparent),
-                    shadowColor: Colors.transparent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    ),
-                  ),
-                  icon: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
+                          ],
                         )
-                      : const Icon(Icons.checkroom_rounded, size: 20),
-                  label: Text(
-                    _isLoading ? 'Adding Item...' : 'Add to Wardrobe',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
+                      : ListView(
+                          children: [
+                            photos,
+                            const SizedBox(height: 28),
+                            details,
+                          ],
+                        ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-          ],
+            );
+          },
         ),
-      ),
-    );
-  }
-
-  void _showImagePicker(bool isFront) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.cardWhite,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44,
-              height: 5,
-              decoration: BoxDecoration(
-                color: AppTheme.borderLight,
-                borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              isFront ? 'Choose Front Image' : 'Choose Back Image',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-                letterSpacing: -0.4,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isFront
-                  ? 'We will automatically scan this image using AI to extract style tags.'
-                  : 'Add a secondary angle for complete details (optional).',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 28),
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      _pickImage(ImageSource.camera, isFront);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceBlueTint,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
-                      ),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt_rounded,
-                              color: AppTheme.primary,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Take Photo',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Use your camera',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          child: _uploading
+              ? Positioned.fill(
+                  key: const ValueKey('uploading'),
+                  child: ColoredBox(
+                    color: AppTheme.offWhite.withValues(alpha: .94),
+                    child: const Center(
+                      child: LottieStatus(
+                        asset: 'assets/animations/uploading.json',
+                        title: 'Preparing your piece',
+                        subtitle:
+                            'Removing the background and organizing the details…',
+                        size: 148,
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      _pickImage(ImageSource.gallery, isFront);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfacePinkTint,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                        border: Border.all(color: AppTheme.secondary.withValues(alpha: 0.15)),
-                      ),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.photo_library_rounded,
-                              color: AppTheme.secondary,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Upload Gallery',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Choose from photos',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                )
+              : const SizedBox.shrink(key: ValueKey('ready')),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }
 
-class DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double strokeWidth;
-  final double gap;
-
-  DashedBorderPainter({
-    required this.color,
-    this.strokeWidth = 1.5,
-    this.gap = 5.0,
+class _PhotoSection extends StatelessWidget {
+  const _PhotoSection({
+    required this.front,
+    required this.back,
+    required this.analyzing,
+    required this.onFront,
+    required this.onBack,
+    required this.onRemoveFront,
+    required this.onRemoveBack,
   });
+  final XFile? front;
+  final XFile? back;
+  final bool analyzing;
+  final VoidCallback onFront;
+  final VoidCallback onBack;
+  final VoidCallback onRemoveFront;
+  final VoidCallback onRemoveBack;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Show us the piece',
+        style: Theme.of(context).textTheme.headlineMedium,
+      ),
+      const SizedBox(height: 7),
+      const Text(
+        'Natural light and a simple background work best.',
+        style: TextStyle(color: AppTheme.textSecondary),
+      ),
+      const SizedBox(height: 18),
+      Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: AspectRatio(
+              aspectRatio: .72,
+              child: _PhotoTile(
+                file: front,
+                label: 'Front view',
+                required: true,
+                analyzing: analyzing,
+                onTap: onFront,
+                onRemove: onRemoveFront,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: AspectRatio(
+              aspectRatio: .72,
+              child: _PhotoTile(
+                file: back,
+                label: 'Back view',
+                required: false,
+                analyzing: false,
+                onTap: onBack,
+                onRemove: onRemoveBack,
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      const Row(
+        children: [
+          Icon(Icons.auto_awesome, size: 16, color: AppTheme.primary),
+          SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              'AI fills color, style, and season when it recognizes the piece.',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
 
-    final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        const Radius.circular(AppTheme.radiusLarge),
-      ));
+class _PhotoTile extends StatelessWidget {
+  const _PhotoTile({
+    required this.file,
+    required this.label,
+    required this.required,
+    required this.analyzing,
+    required this.onTap,
+    required this.onRemove,
+  });
+  final XFile? file;
+  final String label;
+  final bool required;
+  final bool analyzing;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
 
-    double distance = 0.0;
-    for (final pathMetric in path.computeMetrics()) {
-      while (distance < pathMetric.length) {
-        final length = gap;
-        canvas.drawPath(
-          pathMetric.extractPath(distance, distance + length),
-          paint,
-        );
-        distance += length * 2;
-      }
-    }
-  }
+  ImageProvider? get _image => file == null
+      ? null
+      : kIsWeb
+      ? NetworkImage(file!.path)
+      : FileImage(File(file!.path));
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget build(BuildContext context) => Hero(
+    tag: required ? 'upload-front' : 'upload-back',
+    child: Material(
+      color: Colors.transparent,
+      child: Pressable(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: required ? AppTheme.lavender : AppTheme.white,
+            image: _image == null
+                ? null
+                : DecorationImage(image: _image!, fit: BoxFit.cover),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            border: Border.all(
+              color: _image == null ? AppTheme.borderLight : Colors.transparent,
+            ),
+          ),
+          child: Stack(
+            children: [
+              if (_image == null)
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        color: required ? AppTheme.primary : AppTheme.midGray,
+                        size: 30,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        label,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        required ? 'Required' : 'Optional',
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (file != null)
+                Positioned(
+                  top: 9,
+                  right: 9,
+                  child: IconButton.filledTonal(
+                    tooltip: 'Remove photo',
+                    onPressed: onRemove,
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                  ),
+                ),
+              if (analyzing)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.black.withValues(alpha: .72),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                    ),
+                    child: const Center(
+                      child: LottieStatus(
+                        asset: 'assets/animations/ai_thinking.json',
+                        title: 'Reading the details',
+                        subtitle: 'Color, style, season…',
+                        size: 86,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _DetailsSection extends StatelessWidget {
+  const _DetailsSection({
+    required this.categories,
+    required this.category,
+    required this.onCategory,
+    required this.name,
+    required this.color,
+    required this.style,
+    required this.season,
+    required this.uploading,
+    required this.onSave,
+  });
+  final List<String> categories;
+  final String category;
+  final ValueChanged<String> onCategory;
+  final TextEditingController name;
+  final TextEditingController color;
+  final TextEditingController style;
+  final TextEditingController season;
+  final bool uploading;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Add a little context',
+        style: Theme.of(context).textTheme.headlineMedium,
+      ),
+      const SizedBox(height: 7),
+      const Text(
+        'These details make recommendations feel more personal.',
+        style: TextStyle(color: AppTheme.textSecondary),
+      ),
+      const SizedBox(height: 20),
+      TextField(
+        controller: name,
+        decoration: const InputDecoration(
+          labelText: 'Name',
+          hintText: 'e.g. Navy linen shirt',
+          prefixIcon: Icon(Icons.checkroom_outlined),
+        ),
+      ),
+      const SizedBox(height: 12),
+      const Text('Category', style: TextStyle(fontWeight: FontWeight.w700)),
+      const SizedBox(height: 9),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: categories
+            .map(
+              (value) => ChoiceChip(
+                label: Text(value),
+                selected: value == category,
+                labelStyle: TextStyle(
+                  color: value == category ? Colors.white : AppTheme.black,
+                  fontWeight: FontWeight.w700,
+                ),
+                onSelected: (_) => onCategory(value),
+              ),
+            )
+            .toList(),
+      ),
+      const SizedBox(height: 16),
+      Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: color,
+              decoration: const InputDecoration(labelText: 'Color'),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: style,
+              decoration: const InputDecoration(labelText: 'Style'),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: season,
+        decoration: const InputDecoration(
+          labelText: 'Season',
+          prefixIcon: Icon(Icons.calendar_today_outlined),
+        ),
+      ),
+      const SizedBox(height: 22),
+      SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: uploading ? null : onSave,
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Add to wardrobe'),
+        ),
+      ),
+    ],
+  );
+}
+
+class _SourceButton extends StatelessWidget {
+  const _SourceButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(
+    onPressed: onTap,
+    icon: Icon(icon),
+    label: Text(label),
+  );
 }

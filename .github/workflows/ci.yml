@@ -1,46 +1,56 @@
-name: DressSathi CI
+name: DressMate CI
 
 on:
   push:
-    branches: ["develop", "main"]
   pull_request:
-    branches: ["develop", "main"]
+
+permissions:
+  contents: read
 
 jobs:
-  flutter-test:
+  backend:
     runs-on: ubuntu-latest
-
     defaults:
       run:
-        working-directory: ./app
+        working-directory: server
+    env:
+      DATABASE_URL: sqlite:///./ci.db
+      ENVIRONMENT: test
+      JWT_SECRET_KEY: ci-only-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: server/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff format --check .
+      - run: ruff check .
+      - run: alembic upgrade head
+      - run: alembic check
+      - run: pytest -m "blackbox or whitebox" --cov=. --cov-report=term-missing --cov-fail-under=75
 
+  flutter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          channel: "stable"
-
+          channel: stable
+          cache: true
       - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test integration_test
       - run: flutter analyze
-      - run: flutter test
+      - run: flutter test --coverage
+      - run: flutter test integration_test/onboarding_flow_test.dart -d flutter-tester
+      - run: flutter build web --release --dart-define=API_BASE_URL=https://api.example.com
 
-  backend-test:
+  container:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: ./server
-
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      # Add tests here when configured
-      # - name: Run tests
-      #   run: pytest
+      - run: docker build -t dressmate-api ./server

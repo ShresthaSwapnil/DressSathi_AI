@@ -1,9 +1,11 @@
-import os
+import hashlib
 import logging
+import os
 from datetime import datetime, timedelta, timezone
-from passlib.context import CryptContext
-from jose import JWTError, jwt
 from typing import Optional
+
+from jose import jwt
+from passlib.context import CryptContext
 
 logger = logging.getLogger(__name__)
 
@@ -30,15 +32,16 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days for MVP convenience
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-import hashlib
 
 def verify_password(plain_password, hashed_password):
     sha256_hash = hashlib.sha256(plain_password.encode()).hexdigest()
     return pwd_context.verify(sha256_hash, hashed_password)
 
+
 def get_password_hash(password):
     sha256_hash = hashlib.sha256(password.encode()).hexdigest()
     return pwd_context.hash(sha256_hash)
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

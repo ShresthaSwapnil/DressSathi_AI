@@ -1,105 +1,94 @@
-# 👗 DressMate
+# DressMate
 
-**Your Smart Digital Wardrobe & AI Fashion Stylist**
+DressMate is a Flutter and FastAPI wardrobe assistant completed through Sprint 8. It supports secure wardrobe media, Gemini-first AI recommendations with Ollama fallback, live weather, saved outfits, friends, feedback, notifications, and revocable wardrobe sharing.
 
-DressMate is a modern mobile application designed to help you digitize your wardrobe, organize your outfits, and get personalized outfit recommendations powered by Google Gemini AI.
+## Sprint 1–8 scope
 
----
+| Area | Included |
+| --- | --- |
+| Account | Registration, JWT login, secure local token storage, editable style/location profile |
+| Wardrobe | Validated JPEG/PNG/WebP upload, background removal, front/back photos, CRUD, search/filter |
+| Stylist | Structured recommendations from owned item IDs, Open-Meteo context, Gemini → Ollama fallback |
+| Outfits | Normalized saved outfit history, item reasons, delete and friend sharing |
+| Social | Friend request lifecycle, feedback requests/responses, notifications |
+| Sharing | All/selected wardrobe access, authorization checks, expiry/revocation |
+| Delivery | Alembic migrations, non-root Docker image, health checks, CI, black/white-box coverage |
 
-## ✨ Features
+## Run locally
 
-- **📸 Digital Wardrobe**: Snap photos of your clothes and categorize them (Tops, Bottoms, Shoes, etc.) to keep your entire closet in your pocket.
-- **✨ Dual-View Image Support**: Upload both the **front** and **back** images of your outfits to give your wardrobe items a comprehensive perspective.
-- **✂️ Automatic Background Removal**: Processes uploads synchronously using `rembg` (U2Net) to strip the background and save only high-quality, transparent-background PNGs.
-- **🧠 AI Stylist**: Get personalized outfit recommendations based on your current wardrobe, occasion, and even the weather—powered by Google Gemini.
-- **🔐 Secure Auth**: Robust user authentication with JWT and secure password hashing.
-- **📱 Premium Modern UI/UX**: 
-  - Tilted, stacked style onboarding cards with smooth micro-animations.
-  - Revamped, minimal login and registration pages.
-  - Real-time password strength indicator and tactile, responsive haptic feedback throughout the onboarding/authentication flows.
-- **⚡ Storage-Optimized Backend**: Automatically downscales high-resolution images (>1024px) and deletes original raw image files post-processing to conserve filesystem and database space.
+Requirements: Python 3.11, Flutter stable, and optionally Docker/Ollama.
 
----
-
-## 🛠️ Technology Stack
-
-| Layer              | Technology                                                 |
-| ------------------ | ---------------------------------------------------------- |
-| **Frontend**       | Flutter, Provider (State Management)                       |
-| **Backend**        | FastAPI (Python), SQLAlchemy                               |
-| **Bg Removal**     | `rembg` (U2Net model), ONNX Runtime, Pillow                |
-| **Database**       | Neon PostgreSQL (Production), SQLite (Testing)              |
-| **AI Integration** | Google Gemini (2.5 Pro)                                    |
-| **Infrastructure** | Docker, Docker-Compose                                     |
-
----
-
-## 🏗️ Architecture Overview
-
-DressMate uses a modern backend-for-frontend architecture:
-
-1. **FastAPI Server**: Handles business logic, background removal processing, AI analysis, and database interactions.
-2. **Flutter App**: Consumes the RESTful API for a seamless user experience.
-3. **Neon PostgreSQL / SQLite**: Stores user profiles, friendship tables, outfits, and wardrobe metadata.
-4. **Local File Storage**: Saves transparent PNG images directly on the server filesystem, mapped through static serving.
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- [Flutter SDK](https://docs.flutter.dev/get-started/install)
-- [Docker & Docker-Compose](https://docs.docker.com/get-started/get-docker/)
-- [Python 3.9+](https://www.python.org/downloads/)
-
-### 1. Backend Setup
-
-For local setup and testing:
 ```bash
+cp server/.env.example server/.env
 cd server
-python -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
+alembic upgrade head
 uvicorn main:app --reload
 ```
 
-The API will be available at [http://localhost:8000/docs](http://localhost:8000/docs).
-*Note: On the first upload, the backend will automatically download the `u2net.onnx` model file (~170MB) for background removal.*
-
-### 2. Frontend Setup
+The API docs are at `http://localhost:8000/docs`. In another terminal:
 
 ```bash
 cd app
 flutter pub get
-flutter run
+flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8000
 ```
 
----
+Android emulators default to `http://10.0.2.2:8000`; iOS, desktop, and web default to loopback. Always pass `API_BASE_URL` for a deployed build.
 
-## 🔑 Environment Variables
+Docker starts by applying migrations and then serving the API:
 
-Create a `.env` file in the `server/` directory:
+```bash
+docker compose up --build
+```
+
+## Configuration
+
+Copy [server/.env.example](server/.env.example). Production startup rejects SQLite and the default JWT secret. Required production values are:
 
 ```env
-GEMINI_API_KEY=your_key_here
-DATABASE_URL=postgresql://postgres:password@db:5432/dressmate
+ENVIRONMENT=production
+DATABASE_URL=postgresql://...
+JWT_SECRET_KEY=<long-random-secret>
+GEMINI_API_KEY=<key>
+CORS_ORIGINS=https://your-app.example
+UPLOAD_DIR=/persistent/uploads
 ```
 
----
+Gemini is the primary provider. If it is unavailable or returns invented wardrobe IDs, the server validates and retries through Ollama. Open-Meteo does not require an API key.
 
-## 🤝 Contributing
+## Tests
 
-For school/assignment purposes - feel free to build on top of this!
+Backend tests use third-party `pytest`, `pytest-cov`, `pytest-mock`, and `pytest-asyncio`. Black-box tests call the public FastAPI API; white-box tests cover media confinement and AI-provider fallback.
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+```bash
+cd server
+pytest -m blackbox
+pytest -m whitebox
+pytest --cov=. --cov-report=term-missing --cov-fail-under=75
+ruff format --check . && ruff check .
+```
 
----
+Frontend tests use `flutter_test`, Flutter `integration_test`, and `mocktail`:
 
-## 📜 License
+```bash
+cd app
+flutter analyze
+flutter test --coverage
+flutter test integration_test/onboarding_flow_test.dart -d flutter-tester
+```
 
-Independent Project for Academic/Personal use.
+CI runs both suites, checks a fresh migration, builds the release web app, and builds the API container.
+
+## Release
+
+```bash
+cd app
+flutter build web --release --dart-define=API_BASE_URL=https://api.example.com
+flutter build appbundle --release --dart-define=API_BASE_URL=https://api.example.com
+flutter build ipa --release --dart-define=API_BASE_URL=https://api.example.com
+```
+
+Store signing credentials are intentionally not committed. Configure an Android upload key and Apple signing team/provisioning profile before store submission. Media storage must be persistent (or moved to object storage) before horizontal scaling; the current rate limiter is intentionally single-instance and should become Redis-backed when multiple API instances are deployed.

@@ -1,0 +1,10 @@
+.coverage
+.env
+.pytest_cache
+.ruff_cache
+__pycache__
+*.db
+*.pyc
+tests
+uploads
+venv

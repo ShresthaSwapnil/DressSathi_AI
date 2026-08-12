@@ -1,53 +1,60 @@
-from sqlalchemy.orm import Session
-from database import SessionLocal, engine
+import os
+from pathlib import Path
+
+from PIL import Image
+
 import models
 from auth import get_password_hash
+from database import SessionLocal
+
 
 def seed():
-    # Create tables if they don't exist
-    models.Base.metadata.create_all(bind=engine)
-    
+    """Add a local demo account and usable sample wardrobe after migrations."""
     db = SessionLocal()
-    
-    # 1. Create a Demo User
-    demo_email = "demo@dresssathi.com"
-    existing_user = db.query(models.User).filter(models.User.email == demo_email).first()
-    
-    if not existing_user:
-        hashed_pw = get_password_hash("password123")
-        user = models.User(email=demo_email, hashed_password=hashed_pw)
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        print(f"Created user: {demo_email}")
-    else:
-        user = existing_user
-        print(f"User {demo_email} already exists.")
-
-    # 2. Add some Demo Items
-    items = [
-        {"name": "Blue Denim Jacket", "category": "Outerwear", "color": "Blue", "image_url": "/uploads/denim_jacket.jpg"},
-        {"name": "White Linen Shirt", "category": "Tops", "color": "White", "image_url": "/uploads/white_shirt.jpg"},
-        {"name": "Black Slim Fit Jeans", "category": "Bottoms", "color": "Black", "image_url": "/uploads/black_jeans.jpg"},
-        {"name": "Red Silk Scarf", "category": "Accessories", "color": "Red", "image_url": "/uploads/scarf.jpg"},
-        {"name": "Beige Trench Coat", "category": "Outerwear", "color": "Beige", "image_url": "/uploads/trench.jpg"},
-        {"name": "White Leather Sneakers", "category": "Shoes", "color": "White", "image_url": "/uploads/sneakers.jpg"},
-    ]
-
-    for item_data in items:
-        # Check if item exists
-        exists = db.query(models.ClothingItem).filter(models.ClothingItem.name == item_data["name"]).first()
-        if not exists:
-            new_item = models.ClothingItem(
-                user_id=user.id,
-                **item_data
+    try:
+        email = "demo@dressmate.app"
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if not user:
+            user = models.User(
+                email=email,
+                display_name="DressMate Demo",
+                hashed_password=get_password_hash("password123"),
             )
-            db.add(new_item)
-            print(f"Added item: {item_data['name']}")
-    
-    db.commit()
-    db.close()
-    print("Database seeding completed!")
+            db.add(user)
+            db.flush()
+
+        upload_root = Path(os.getenv("UPLOAD_DIR", "uploads"))
+        upload_root.mkdir(parents=True, exist_ok=True)
+        samples = [
+            ("Navy Shirt", "Tops", "Navy"),
+            ("Black Trousers", "Bottoms", "Black"),
+            ("White Sneakers", "Shoes", "White"),
+        ]
+        for index, (name, category, color) in enumerate(samples):
+            if (
+                db.query(models.ClothingItem)
+                .filter_by(user_id=user.id, name=name)
+                .first()
+            ):
+                continue
+            filename = f"{user.id}_seed_{index}.png"
+            Image.new("RGB", (320, 400), color.lower()).save(upload_root / filename)
+            db.add(
+                models.ClothingItem(
+                    user_id=user.id,
+                    name=name,
+                    category=category,
+                    color=color,
+                    style="Classic",
+                    season="All-season",
+                    image_url=f"/media/{filename}",
+                )
+            )
+        db.commit()
+        print("Seeded demo@dressmate.app / password123")
+    finally:
+        db.close()
+
 
 if __name__ == "__main__":
     seed()

@@ -5,6 +5,7 @@ Processes images synchronously and outputs PNG with transparent alpha channel.
 
 import io
 import os
+
 from PIL import Image
 from rembg import remove
 
@@ -40,8 +41,8 @@ def remove_background(input_path: str, output_path: str) -> str:
         result_image.save(output_path, format="PNG", optimize=True)
         return output_path
 
-    except Exception as e:
-        raise RuntimeError(f"Background removal failed: {e}")
+    except Exception as exc:
+        raise RuntimeError(f"Background removal failed: {exc}") from exc
 
 
 def process_upload_with_bg_removal(original_path: str) -> str:

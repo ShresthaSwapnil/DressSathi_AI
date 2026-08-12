@@ -26,6 +26,15 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<key>NSCameraUsageDescription</key>
+		<string>DressMate uses the camera to add clothing photos to your wardrobe.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>DressMate uses selected photos to add clothing to your wardrobe.</string>
+		<key>NSAppTransportSecurity</key>
+		<dict>
+			<key>NSAllowsLocalNetworking</key>
+			<true/>
+		</dict>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>

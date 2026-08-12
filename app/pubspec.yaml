@@ -40,11 +40,15 @@ dependencies:
   provider: ^6.1.5+1
   shared_preferences: ^2.5.4
   image_picker: ^1.2.1
+  lottie: ^3.3.2
   flutter_native_splash: ^2.4.7
 
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
+  mocktail: ^1.0.4
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -69,6 +73,7 @@ flutter:
     - assets/logo.png
     - assets/onboarding_1.png
     - assets/onboarding_2.png
+    - assets/animations/
 
 # ── Native Splash Screen Configuration ──
 flutter_native_splash:
@@ -88,4 +93,3 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/logo.png"
-

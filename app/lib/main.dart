@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui';
 import 'package:provider/provider.dart';
+
 import 'providers/auth_provider.dart';
-import 'screens/onboarding_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/recommendation_screen.dart';
 import 'screens/friends_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/recommendation_screen.dart';
 import 'screens/upload_screen.dart';
 import 'utils/app_theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: AppTheme.offWhite,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
   runApp(
-    MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
+    ChangeNotifierProvider(
+      create: (_) => AuthProvider(),
       child: const DressMateApp(),
     ),
   );
@@ -24,14 +33,12 @@ class DressMateApp extends StatelessWidget {
   const DressMateApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'DressMate',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: const AuthWrapper(),
-    );
-  }
+  Widget build(BuildContext context) => MaterialApp(
+    title: 'DressMate',
+    debugShowCheckedModeBanner: false,
+    theme: AppTheme.lightTheme,
+    home: const AuthWrapper(),
+  );
 }
 
 class AuthWrapper extends StatefulWidget {
@@ -46,116 +53,66 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<AuthProvider>(context, listen: false).checkAuthStatus();
+      context.read<AuthProvider>().checkAuthStatus();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-
-    if (authProvider.sessionExpired) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(
-                  Icons.info_outline_rounded,
-                  color: AppTheme.errorRed,
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Session Expired',
-                        style: TextStyle(
-                          color: AppTheme.offBlack,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Please log in again to continue.',
-                        style: TextStyle(
-                          color: AppTheme.midGray,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: AppTheme.white,
-            behavior: SnackBarBehavior.floating,
-            elevation: 8,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              side: const BorderSide(
-                color: AppTheme.borderLight,
-                width: 1,
-              ),
-            ),
-            duration: const Duration(seconds: 4),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
-        authProvider.clearSessionExpired();
-      });
-    }
-
-    if (authProvider.isLoading) {
-      return Scaffold(
-        backgroundColor: AppTheme.white,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                'assets/logo.png',
-                width: 80,
-                height: 80,
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'DressMate',
-                style: TextStyle(
-                  color: AppTheme.offBlack,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 28),
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (authProvider.isAuthenticated) {
-      return const AppShell();
-    }
-
-    return const OnboardingScreen();
+    final auth = context.watch<AuthProvider>();
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 450),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: auth.isLoading
+          ? const _LaunchLoader(key: ValueKey('loading'))
+          : auth.isAuthenticated
+          ? const AppShell(key: ValueKey('app'))
+          : const OnboardingScreen(key: ValueKey('onboarding')),
+    );
   }
 }
 
-/// Main app shell with premium bottom navigation
+class _LaunchLoader extends StatefulWidget {
+  const _LaunchLoader({super.key});
+
+  @override
+  State<_LaunchLoader> createState() => _LaunchLoaderState();
+}
+
+class _LaunchLoaderState extends State<_LaunchLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: FadeTransition(
+        opacity: Tween(begin: 0.55, end: 1.0).animate(_controller),
+        child: ScaleTransition(
+          scale: Tween(begin: 0.94, end: 1.04).animate(_controller),
+          child: Hero(
+            tag: 'brand-logo',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Image.asset('assets/logo.png', width: 82, height: 82),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -163,224 +120,273 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> with TickerProviderStateMixin {
-  int _currentIndex = 0;
+class _AppShellState extends State<AppShell> {
+  int _index = 0;
+  final _homeKey = GlobalKey<HomeScreenState>();
 
-  final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
-
-  late final List<Widget> _screens = [
+  late final _screens = <Widget>[
     HomeScreen(key: _homeKey),
     const RecommendationScreen(),
     const FriendsScreen(),
     const ProfileScreen(),
   ];
 
-  // Maps nav position (0-4, skipping center) to screen index (0-3)
-  int _screenIndexFromNav(int navIndex) {
-    if (navIndex < 2) return navIndex;
-    return navIndex - 1; // 3→2, 4→3
+  static const _destinations = [
+    (Icons.grid_view_rounded, Icons.grid_view_outlined, 'Wardrobe'),
+    (Icons.auto_awesome_rounded, Icons.auto_awesome_outlined, 'Stylist'),
+    (Icons.people_alt_rounded, Icons.people_alt_outlined, 'Social'),
+    (Icons.person_rounded, Icons.person_outline_rounded, 'You'),
+  ];
+
+  void _select(int value) {
+    if (value == _index) return;
+    HapticFeedback.selectionClick();
+    setState(() => _index = value);
   }
 
-  void _onNavTap(int navIndex) {
-    final screenIndex = _screenIndexFromNav(navIndex);
-    if (_currentIndex != screenIndex) {
-      HapticFeedback.selectionClick();
-      setState(() => _currentIndex = screenIndex);
-    }
-  }
-
-  int _navIndexFromScreen(int screenIndex) {
-    if (screenIndex < 2) return screenIndex;
-    return screenIndex + 1; // 2→3, 3→4
-  }
-
-  Future<void> _onCenterTap() async {
+  Future<void> _addItem() async {
     HapticFeedback.mediumImpact();
-    final result = await Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const UploadScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            )),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 400),
+    final result = await Navigator.of(context).push(
+      PageRouteBuilder<bool>(
+        transitionDuration: const Duration(milliseconds: 420),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        pageBuilder: (_, animation, _) => FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: const UploadScreen(),
+        ),
       ),
     );
-    // If item was uploaded, refresh the home screen data
-    if (result == true) {
-      _homeKey.currentState?.refreshItems();
-    }
+    if (result == true) _homeKey.currentState?.refreshItems();
   }
 
   @override
   Widget build(BuildContext context) {
-    final activeNav = _navIndexFromScreen(_currentIndex);
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Screen content
-          Positioned.fill(
-            bottom: 72 + bottomPadding,
-            child: AnimatedSwitcher(
-              duration: AppTheme.durationMedium,
-              child: IndexedStack(
-                key: ValueKey(_currentIndex),
-                index: _currentIndex,
-                children: _screens,
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+    final content = Stack(
+      children: List.generate(
+        _screens.length,
+        (screenIndex) => Positioned.fill(
+          child: IgnorePointer(
+            ignoring: screenIndex != _index,
+            child: AnimatedOpacity(
+              key: ValueKey('screen-opacity-$screenIndex'),
+              opacity: screenIndex == _index ? 1 : 0,
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOut,
+              child: TickerMode(
+                enabled: screenIndex == _index,
+                child: _screens[screenIndex],
               ),
             ),
           ),
+        ),
+      ),
+    );
 
-          // Frosted glass bottom navigation
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildBottomNav(activeNav, bottomPadding),
+    if (wide) {
+      return Scaffold(
+        body: Row(
+          children: [
+            _DesktopRail(index: _index, onSelect: _select, onAdd: _addItem),
+            const VerticalDivider(width: 1, color: AppTheme.borderLight),
+            Expanded(child: content),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      extendBody: true,
+      body: content,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'add-item',
+        tooltip: 'Add wardrobe item',
+        onPressed: _addItem,
+        backgroundColor: AppTheme.black,
+        foregroundColor: AppTheme.white,
+        elevation: 8,
+        child: const Icon(Icons.add_rounded, size: 29),
+      ),
+      bottomNavigationBar: _MobileNav(index: _index, onSelect: _select),
+    );
+  }
+}
+
+class _MobileNav extends StatelessWidget {
+  const _MobileNav({required this.index, required this.onSelect});
+
+  final int index;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+    decoration: BoxDecoration(
+      color: AppTheme.white.withValues(alpha: 0.96),
+      borderRadius: BorderRadius.circular(25),
+      border: Border.all(color: AppTheme.borderLight),
+      boxShadow: AppTheme.mediumShadow,
+    ),
+    child: SafeArea(
+      top: false,
+      minimum: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      child: Row(
+        children: List.generate(_AppShellState._destinations.length + 1, (
+          slot,
+        ) {
+          if (slot == 2) return const Expanded(child: SizedBox(height: 54));
+          final itemIndex = slot > 2 ? slot - 1 : slot;
+          final item = _AppShellState._destinations[itemIndex];
+          final selected = itemIndex == index;
+          return Expanded(
+            child: Semantics(
+              button: true,
+              selected: selected,
+              label: item.$3,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => onSelect(itemIndex),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        width: selected ? 34 : 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppTheme.lavender
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          selected ? item.$1 : item.$2,
+                          size: 20,
+                          color: selected ? AppTheme.primary : AppTheme.midGray,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.$3,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: selected ? AppTheme.black : AppTheme.midGray,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    ),
+  );
+}
+
+class _DesktopRail extends StatelessWidget {
+  const _DesktopRail({
+    required this.index,
+    required this.onSelect,
+    required this.onAdd,
+  });
+
+  final int index;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 108,
+    color: AppTheme.white,
+    child: SafeArea(
+      child: Column(
+        children: [
+          const SizedBox(height: 18),
+          Hero(
+            tag: 'brand-logo',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset('assets/logo.png', width: 46, height: 46),
+            ),
+          ),
+          const SizedBox(height: 30),
+          for (var i = 0; i < _AppShellState._destinations.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _RailButton(
+                item: _AppShellState._destinations[i],
+                selected: i == index,
+                onTap: () => onSelect(i),
+              ),
+            ),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: IconButton.filled(
+              tooltip: 'Add item',
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_rounded),
+            ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildBottomNav(int activeNav, double bottomPadding) {
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.topCenter,
-      children: [
-        // Frosted glass background
-        ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.white.withValues(alpha: 0.85),
-                border: const Border(
-                  top: BorderSide(
-                    color: Color(0xFFEAECF0),
-                    width: 0.5,
-                  ),
-                ),
-              ),
-              child: SafeArea(
-                top: false,
-                child: SizedBox(
-                  height: 72,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildNavItem(0, activeNav, Icons.checkroom_outlined,
-                            Icons.checkroom_rounded, 'Wardrobe'),
-                        _buildNavItem(1, activeNav, Icons.auto_awesome_outlined,
-                            Icons.auto_awesome_rounded, 'AI Stylist'),
-                        const SizedBox(width: 64),
-                        _buildNavItem(3, activeNav, Icons.people_outline,
-                            Icons.people_rounded, 'Social'),
-                        _buildNavItem(4, activeNav, Icons.person_outline,
-                            Icons.person_rounded, 'Profile'),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+class _RailButton extends StatelessWidget {
+  const _RailButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
 
-        // Floating center button
-        Positioned(
-          top: -26,
-          child: _buildCenterButton(),
-        ),
-      ],
-    );
-  }
+  final (IconData, IconData, String) item;
+  final bool selected;
+  final VoidCallback onTap;
 
-  Widget _buildCenterButton() {
-    return GestureDetector(
-      onTap: _onCenterTap,
-      child: Container(
-        width: 60,
-        height: 60,
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    selected: selected,
+    label: item.$3,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        width: 76,
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          gradient: AppTheme.secondaryGradient,
-          shape: BoxShape.circle,
-          boxShadow: AppTheme.secondaryGlow,
-          border: Border.all(
-            color: AppTheme.white,
-            width: 4,
-          ),
+          color: selected ? AppTheme.lavender : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
         ),
-        child: const Icon(
-          Icons.add_rounded,
-          color: AppTheme.white,
-          size: 28,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(
-      int navIndex, int activeNav, IconData icon, IconData activeIcon,
-      String label) {
-    final isSelected = activeNav == navIndex;
-    return GestureDetector(
-      onTap: () => _onNavTap(navIndex),
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 64,
-        height: 72,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedContainer(
-              duration: AppTheme.durationMedium,
-              curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppTheme.primary.withValues(alpha: 0.1)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
-              child: AnimatedSwitcher(
-                duration: AppTheme.durationFast,
-                child: Icon(
-                  isSelected ? activeIcon : icon,
-                  key: ValueKey('$navIndex-$isSelected'),
-                  size: 24,
-                  color: isSelected ? AppTheme.primary : AppTheme.lightGray,
-                ),
-              ),
+            Icon(
+              selected ? item.$1 : item.$2,
+              color: selected ? AppTheme.primary : AppTheme.midGray,
             ),
-            const SizedBox(height: 2),
-            AnimatedDefaultTextStyle(
-              duration: AppTheme.durationFast,
+            const SizedBox(height: 4),
+            Text(
+              item.$3,
               style: TextStyle(
-                color: isSelected ? AppTheme.primary : AppTheme.lightGray,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                fontSize: 10,
-                letterSpacing: -0.1,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: selected ? AppTheme.black : AppTheme.midGray,
               ),
-              child: Text(label),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }
